@@ -1,0 +1,9 @@
+[package]
+name = "nlang"
+version = "0.1.0"
+authors = ["iohub <cn.ydlme@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+pest = "0.4.1"
+
