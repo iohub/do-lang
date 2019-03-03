@@ -14,8 +14,6 @@ basic_val = @{
 WHITESPACE = _{ (" ") | ("\t") | ("\u{000C}") | ("\r") | ("\n") }
 
 // token define
-comma = { "," }
-semi = { ";" }
 whitespace = _{ " " | "\t" | "\r" | "\n" }
 alpha = _{ 'a'..'z' | 'A'..'Z' | "_" }
 alphanumeric = _{ alpha | '0'..'9' }
@@ -26,13 +24,7 @@ float = @{ integer+ ~ "." ~ integer+ }
 identifier = @{ (('a'..'z') | ('A'..'Z') | ("_")) ~ (('a'..'z') | ('A'..'Z') | ("_") | ('0'..'9'))* }
 bool_literal = @{ "true" | "false" }
 literal_char = { whitespace | (!"\"" ~ ANY) }
-string_literal = @{ "b\"" ~ literal_char* ~ "\"" }
-block_start = { "{" }
-block_end = { "}" }
-lparen = { "(" }
-rparen = { ")" }
-annotation = { ":" }
-arrow = { "->" }
+str = @{ "b\"" ~ literal_char* ~ "\"" }
 
 // operator
 op_or = { "||" }
@@ -54,7 +46,7 @@ module = _{ SOI ~ decl_func* ~ statement* ~ EOI }
 // grammar define
 decl_func = { "fn" ~ identifier ~  func_args ~ ("->") ~ basic_val ~ block }
 func_args = { ("(") ~ (func_arg ~ ",")* ~ func_arg? ~ (")") }
-func_arg = { identifier ~ annotation ~ basic_val }
+func_arg = { identifier ~ (":") ~ basic_val }
 block = { ("{") ~ statement* ~ ("}") }
 
 statement = { 
@@ -62,7 +54,7 @@ statement = {
     assign_stmt |
     while_stmt |
     if_stmt |
-    (expr ~ semi) |
+    (expr ~ (";")) |
     comment
 }
 
@@ -74,7 +66,7 @@ assign_stmt = { identifier ~ op_assign ~ (identifier | values)}
 values = { 
     integer |
     float |
-    string_literal
+    str
 }
 
 while_stmt = { "while" ~ expr ~ block }
