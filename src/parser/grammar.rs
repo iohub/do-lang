@@ -9,7 +9,7 @@ pub struct PieceParser;
 
 impl PieceParser {
     pub fn _parse(buf: &str) {
-        let module = PieceParser::parse(Rule::module, buf)
+        let _module = PieceParser::parse(Rule::_module, buf)
             .unwrap_or_else(|e| panic!("parser error: {}", e));
     }
 }
@@ -20,11 +20,19 @@ mod tests {
 
     #[test]
     fn test_parse() {
+        // TODO: fix init with call()
         let code = r#"
-            fn foo(a: int) -> int {
-                if a > 100 {
-                    let valb = 1000;
+            fn add(a: int, b: int) -> int {
+                let c;
+                let a = 1001 + 10;
+                a = callfn(a, c);
+                while a > 100 {
+                    a = add(100, "ok");
                 }
+            }
+            if a > 100 {
+                undefined = calc("hello world", 12);
+                let val0 = 101;
             }
         "#;
         PieceParser::_parse(code);

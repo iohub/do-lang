@@ -21,14 +21,20 @@ nonzero = _{ '1'..'9' }
 digit = _{ '0'..'9' }
 integer = @{ "0" | (nonzero ~ digit*) }
 float = @{ integer+ ~ "." ~ integer+ }
-identifier = @{ (('a'..'z') | ('A'..'Z') | ("_")) ~ (('a'..'z') | ('A'..'Z') | ("_") | ('0'..'9'))* }
-bool_literal = @{ "true" | "false" }
-literal_char = { whitespace | (!"\"" ~ ANY) }
-str = @{ "b\"" ~ literal_char* ~ "\"" }
+identifier = @{ (!keyword) ~ (alpha) ~ (alpha | digit)* }
+bool = @{ "true" | "false" }
+double_quoted_string = @{ "\"" ~ (!("\"") ~ ANY)* ~ "\"" }
+single_quoted_string = @{ "\'" ~ (!("\'") ~ ANY)* ~ "\'" }
+backquoted_quoted_string = @{ "`" ~ (!("`") ~ ANY)* ~ "`" }
+
+str = @{
+    double_quoted_string |
+    single_quoted_string |
+    backquoted_quoted_string
+}
 
 // operator
 op_or = { "||" }
-op_assign = { "=" }
 op_and = { "&&" }
 op_eq = { "==" }
 op_ne = { "!=" }
@@ -37,31 +43,45 @@ op_ge = { ">=" }
 op_gt = { "<" }
 op_lt = { ">" }
 op_not = { "!" }
+op_plus = { "+" }
 op_modulo = { "%" }
 
 
 // top level of program module
-module = _{ SOI ~ decl_func* ~ statement* ~ EOI }
+_module = _{ SOI ~ decl_func* ~ statement* ~ EOI }
 
 // grammar define
-decl_func = { "fn" ~ identifier ~  func_args ~ ("->") ~ basic_val ~ block }
-func_args = { ("(") ~ (func_arg ~ ",")* ~ func_arg? ~ (")") }
-func_arg = { identifier ~ (":") ~ basic_val }
+fn_decl_arg = { identifier ~ ":" ~ basic_val }
+fun_decl_args = { fn_decl_arg ~ ("," ~ fn_decl_arg)*  }
+func_decl_type = { "->" ~  basic_val }
+decl_func = { "fn" ~ identifier ~  "(" ~ fun_decl_args ~ ")" ~ func_decl_type? ~ block }
 block = { ("{") ~ statement* ~ ("}") }
 
+infix = { (identifier | values | fn_call) ~ op_infix ~ (identifier | values| fn_call) }
+prefix = { op_not ~ (identifier | fn_call) }
+arg = { identifier | values }
+args = { arg ~ ( "," ~  arg)* }
+fn_call = { identifier ~ "(" ~ args? ~ ")" }
+
+expr = { 
+    infix |
+    prefix |
+    fn_call
+}
+
 statement = { 
-    var_decl |
+    let_decl |
+    let_decl_init |
     assign_stmt |
     while_stmt |
     if_stmt |
-    (expr ~ (";")) |
-    comment
+    ( expr ~ ";" )
 }
 
-var_decl = _{ let_decl_init }
-let_decl = { ("let") ~ identifier ~ (";") }
-let_decl_init = { ("let") ~ identifier ~  ("=") ~ (identifier | func_call| values) ~ (";") }
-assign_stmt = { identifier ~ op_assign ~ (identifier | values)}
+var_decl = { let_decl_init | let_decl }
+let_decl = { "let" ~ identifier ~ ";" }
+let_decl_init = { "let" ~ identifier ~  "=" ~ (identifier | expr | values) ~ ";" }
+assign_stmt = { identifier ~ ("=") ~ (fn_call) ~ (";") }
 
 values = { 
     integer |
@@ -73,7 +93,7 @@ while_stmt = { "while" ~ expr ~ block }
 if_stmt = { "if" ~ expr ~ block ~ ("else" ~ block)* }
 comment = _{ "//" ~ (!("\r" | "\n") ~ ANY)* ~ ("\n" | "\r\n" | "\r") }
 
-op_infix = {
+op_infix = _{
     op_or |
     op_and |
     op_eq |
@@ -81,13 +101,8 @@ op_infix = {
     op_le |
     op_ge |
     op_gt |
-    op_lt
+    op_lt | 
+    op_plus
 }
 
-infix = { (comparison | func_call) ~ op_infix ~ (comparison | func_call) }
-prefix = { op_not? ~ (identifier | func_call) }
-expr = { infix | prefix }
-call_arg = { identifier | values }
-comparison = { identifier | values }
-func_call = { identifier ~ ("(") ~ (call_arg ~ ",")* ~ call_arg ~ ")" }
 
