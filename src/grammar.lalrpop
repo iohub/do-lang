@@ -5,29 +5,59 @@ use crate::ast::*;
 grammar;
 
 pub Expr: AstNode = {
-    BinaryExpr => <>,
+    BinaryLogicExpr => <>,
+    Int => <>,
+    Ident => <>,
 }
 
-BinaryExpr: AstNode = {
-    <s:@L> <ident1:Ident> <op:BinOp> <ident2:Ident> <e:@L> => {
-        AstNode::BinaryOp(Box::new(ident1), op, Box::new(ident2))
+BinaryLogicExpr: AstNode = {
+    <s:@L> <obj1:BinaryObj> <op:BinLogicOp> <obj2:BinaryObj> <e:@L> => {
+        AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2))
     }
+}
+
+BinaryObj: AstNode = {
+    Ident => <>,
+    Int => <>,
+    Str => <>,
 }
 
 Ident: AstNode = {
     <v:r"[A-Za-z_][A-Za-z_0-9]*"> => AstNode::Ident(v.to_string())
 }
 
-BinOp: Operator = {
-     "||" => Operator::OpOr,
-     "=" => Operator::OpAssign,
-     "&&" => Operator::OpAnd,
+BinLogicOp: Operator = {
+    CompareOp => <>,
+    LogicOp => <>,
+}
+
+CompareOp: Operator = {
      "==" => Operator::OpEq,
      "!=" => Operator::OpNe,
      "<=" => Operator::OpLe,
      ">=" => Operator::OpGe,
      "<" => Operator::OpLt,
      ">" => Operator::OpGt,
-     "!" => Operator::OpNot,
+}
+
+LogicOp: Operator = {
+    "||" => Operator::OpOr,
+    "&&" => Operator::OpAnd,
+}
+
+MathOp: Operator = {
      "+" => Operator::OpPlus,
+     "-" => Operator::OpSub,
+     "*" => Operator::OpMul,
+     "/" => Operator::OpDiv,
+}
+
+Int: AstNode = {
+    <s:@L> <i:r"-?[0-9]+"> <e:@L> => AstNode::Int(i32::from_str(i).unwrap())
+}
+
+Str: AstNode = {
+    <x:r#""(([^\\"]|\\.)*)""#> => {
+        AstNode::Str(x[1..(x.len() - 1)].to_string())
+    }
 }

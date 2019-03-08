@@ -44,6 +44,9 @@ pub enum Operator {
     OpLt,
     OpNot,
     OpPlus,
+    OpSub,
+    OpMul,
+    OpDiv,
     OpUnknown,
 }
 
