@@ -16,13 +16,13 @@ pub enum AstNode {
     Eof,
 
     // name: String, typeid: i32
-    Identifer(String, i32),
+    Ident(String),
     // Fn: Identifer, param: Vec<Identifer>, block<Statement>
     FnDecl(Box<AstNode>, Param, StmtBlock),
     // Fn: Identifer, param: Vec<Identifer>
     FnCall(Box<AstNode>, Param),
-    Infix(Box<AstNode>, Operator, Box<AstNode>),
-    Prefix(Operator, Box<AstNode>),
+    BinaryOp(Box<AstNode>, Operator, Box<AstNode>),
+    UnaryOp(Operator, Box<AstNode>),
     VarDecl(Box<AstNode>, Box<AstNode>),
     Assignment(Box<AstNode>, Box<AstNode>),
     // conditional, block
@@ -30,7 +30,6 @@ pub enum AstNode {
     // conditional, T-block, F-block
     IfStmt(Box<AstNode>, StmtBlock, StmtBlock),
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Operator {
@@ -44,6 +43,7 @@ pub enum Operator {
     OpGt,
     OpLt,
     OpNot,
+    OpPlus,
     OpUnknown,
 }
 

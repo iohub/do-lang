@@ -3,8 +3,12 @@ name = "piece"
 version = "0.1.0"
 authors = ["iohub <cn.ydlme@gmail.com>"]
 edition = "2018"
+build = "build.rs"
 
 [dependencies]
-pest = "2"
-pest_derive = "2"
+lalrpop-util = "0.16"
+regex = "0.2.0"
+
+[build-dependencies]
+lalrpop = "0.16"
 

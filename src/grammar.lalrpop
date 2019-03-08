@@ -1,0 +1,33 @@
+
+use std::str::FromStr;
+use crate::ast::*;
+
+grammar;
+
+pub Expr: AstNode = {
+    BinaryExpr => <>,
+}
+
+BinaryExpr: AstNode = {
+    <s:@L> <ident1:Ident> <op:BinOp> <ident2:Ident> <e:@L> => {
+        AstNode::BinaryOp(Box::new(ident1), op, Box::new(ident2))
+    }
+}
+
+Ident: AstNode = {
+    <v:r"[A-Za-z_][A-Za-z_0-9]*"> => AstNode::Ident(v.to_string())
+}
+
+BinOp: Operator = {
+     "||" => Operator::OpOr,
+     "=" => Operator::OpAssign,
+     "&&" => Operator::OpAnd,
+     "==" => Operator::OpEq,
+     "!=" => Operator::OpNe,
+     "<=" => Operator::OpLe,
+     ">=" => Operator::OpGe,
+     "<" => Operator::OpLt,
+     ">" => Operator::OpGt,
+     "!" => Operator::OpNot,
+     "+" => Operator::OpPlus,
+}
