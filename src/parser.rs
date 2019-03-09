@@ -6,33 +6,37 @@ fn expr_test() {
     use crate::ast::*;
     use crate::grammar::StatementParser;
 
-    let mut sources = "var1 != \"10\";";
-    println!("{}", sources);
-    StatementParser::new().parse(sources).unwrap();
-
-    sources = "cal(var1, var2);";
-    println!("{}", sources);
-    StatementParser::new().parse(sources).unwrap();
-
-    sources = r#"
+    let mut sources = r#"
         fn eq(a: int, b: int) -> bool {
             if a > 10 {
-                a = a + 100;
+                a = a + 100 + calc(a, bval);
             }
             a == b
         }
     "#;
     println!("{}", sources);
     StatementParser::new().parse(sources).unwrap();
-    sources = r#"
+}
+
+
+#[test]
+fn module_test() {
+    use crate::ast::*;
+    use crate::grammar::ModuleParser;
+    let sources = r#"
         fn eq(a: int, b: int) {
             if a > 100 {
-                a = b;
+                a = b + 1000 + c + d;
                 add(a, b);
             }
             a == b
         }
+        a = b + 1000 + c + d;
+        
+        fn main() {
+            a = calc(a10, val1) + d + calc(a, val100);
+        }
     "#;
     println!("{}", sources);
-    StatementParser::new().parse(sources).unwrap();
+    ModuleParser::new().parse(sources).unwrap();
 }

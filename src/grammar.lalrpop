@@ -4,6 +4,10 @@ use crate::ast::*;
 
 grammar;
 
+pub Module: Vec<AstNode> = {
+    <v: Statement*> => v
+}
+
 pub Statement: AstNode = {
     <expr: Expr> ";" => expr,
     <Fn: FnDecl> => Fn,
@@ -67,6 +71,9 @@ NumOpObj: AstNode = {
 
 MathStmt: AstNode = {
     <s:@L> <obj1: NumOpObj> <op: MathOp> <obj2: NumOpObj> <e:@L> => {
+        AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2))
+    },
+    <s:@L> <obj1: MathStmt> <op: MathOp> <obj2: NumOpObj> <e:@L> => {
         AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2))
     }
 }
