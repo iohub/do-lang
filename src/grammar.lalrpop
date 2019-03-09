@@ -4,23 +4,131 @@ use crate::ast::*;
 
 grammar;
 
-pub Expr: AstNode = {
+pub Statement: AstNode = {
+    <expr: Expr> ";" => expr,
+    <Fn: FnDecl> => Fn,
+    <If: IfStmt> => If,
+    <AssignStmt> ";" => <>,
+}
+
+Expr: AstNode = {
     BinaryLogicExpr => <>,
-    Int => <>,
+    // bool-fn
+    FnCall => <>,
+    // bool-var
     Ident => <>,
 }
 
+ValExpr: AstNode = {
+    MathStmt => <>,
+    FnCall => <>,
+    Ident => <>,
+    Float => <>,
+    Int => <>,
+    Str => <>,
+}
+
+IfStmt: AstNode = {
+    <s:@L> "if" <cond: Expr> <Tblock: StmtBlock> <e:@L> => {
+        AstNode::IfStmt(Box::new(cond), Tblock, Vec::new())
+    },
+    <s:@L> "if" <cond: Expr> <Tblock: StmtBlock> "else" <Fblock: StmtBlock> <e:@L> => {
+        AstNode::IfStmt(Box::new(cond), Tblock, Fblock)
+    }
+}
+
+AssignStmt: AstNode = {
+    <s:@L> <var1: Ident> "=" <var2: ValExpr> <e:@L> => {
+        AstNode::Assignment(Box::new(var1), Box::new(var2))
+    }
+}
+
 BinaryLogicExpr: AstNode = {
-    <s:@L> <obj1:BinaryObj> <op:BinLogicOp> <obj2:BinaryObj> <e:@L> => {
+    <s:@L> <obj1:BinaryOpObj> <op:BinLogicOp> <obj2:BinaryOpObj> <e:@L> => {
         AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2))
     }
 }
 
-BinaryObj: AstNode = {
+BinaryOpObj: AstNode = {
     Ident => <>,
     Int => <>,
+    Float => <>,
     Str => <>,
+    FnCall => <>,
 }
+
+// + - * /
+NumOpObj: AstNode = {
+    Ident => <>,
+    Int => <>,
+    Float => <>,
+    FnCall => <>,
+}
+
+MathStmt: AstNode = {
+    <s:@L> <obj1: NumOpObj> <op: MathOp> <obj2: NumOpObj> <e:@L> => {
+        AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2))
+    }
+}
+
+FnCall: AstNode = {
+     <s:@L> <Fn:Ident> <args:FnArgs> <e:@L> => AstNode::FnCall(Box::new(Fn), args)
+}
+
+StmtBlock: Vec<AstNode> = {
+   "{" <v:(<Statement>)*> <e:(Expr)?> "}" => match e {
+        None => v,
+        Some(e) => {
+            let mut v = v;
+            v.push(e);
+            v
+        }
+    }
+}
+
+FnArgs: Vec<AstNode> = {
+    "(" <args:Comma<Ident>> ")" => args
+}
+
+Comma<T>: Vec<T> = {
+    <v:(<T> ",")*> <e:T?> => match e {
+        None => v,
+        Some(e) => {
+            let mut v = v;
+            v.push(e);
+            v
+        }
+    }
+}
+
+FnDecl: AstNode = {
+    <s:@L> <p:"pub"?> "fn" <name: Ident> <args: FnDeclArgs> <rtype: FnRtype> <block: StmtBlock> <e:@L> => {
+        AstNode::FnDecl(Box::new(name), args, Box::new(rtype), block)
+    },
+    <s:@L> <p:"pub"?> "fn" <name: Ident> <args: FnDeclArgs> <block: StmtBlock> <e:@L> => {
+        AstNode::FnDecl(Box::new(name), args, Box::new(AstNode::Int(0)), block)
+    }
+}
+
+FnRtype: AstNode = {
+    "->" <t: Ident> => t
+}
+
+FnDeclArgs: Vec<AstNode> = {
+    "(" <v:(<ColonArg> ",")*> <e:ColonArg?> ")" => match e {
+        None => v,
+        Some(e) => {
+            let mut v = v;
+            v.push(e);
+            v
+        }
+    }
+}
+
+ColonArg: AstNode = {
+    <n: Ident> ":" <t: Ident> => t
+}
+
 
 Ident: AstNode = {
     <v:r"[A-Za-z_][A-Za-z_0-9]*"> => AstNode::Ident(v.to_string())
@@ -54,6 +162,12 @@ MathOp: Operator = {
 
 Int: AstNode = {
     <s:@L> <i:r"-?[0-9]+"> <e:@L> => AstNode::Int(i32::from_str(i).unwrap())
+}
+
+Float: AstNode = {
+    <s:@L> <f:r"-?[0-9]+\.+[0-9]*"> <e:@L> => {
+        AstNode::Float(f32::from_str(f).unwrap())
+    }
 }
 
 Str: AstNode = {

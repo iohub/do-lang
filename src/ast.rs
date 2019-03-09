@@ -17,8 +17,8 @@ pub enum AstNode {
 
     // name: String, typeid: i32
     Ident(String),
-    // Fn: Identifer, param: Vec<Identifer>, block<Statement>
-    FnDecl(Box<AstNode>, Param, StmtBlock),
+    // Fn: Identifer, param: Vec<Identifer>, rtype: Ident, block<Statement>
+    FnDecl(Box<AstNode>, Param, Box<AstNode>, StmtBlock),
     // Fn: Identifer, param: Vec<Identifer>
     FnCall(Box<AstNode>, Param),
     BinaryOp(Box<AstNode>, Operator, Box<AstNode>),
@@ -65,18 +65,5 @@ pub fn typeof_operator(op: String) -> Operator {
          "!" => Operator::OpNot,
 
          _ => Operator::OpUnknown,
-    }
-}
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_operator() {
-        let op = "!=".to_string();
-        let opt = typeof_operator(op);
-        println!("{:?}", opt);
-        assert!(Operator::OpNe == opt);
     }
 }
