@@ -1,4 +1,4 @@
-
+use std::fmt;
 
 pub type StmtBlock = Vec<AstNode>;
 pub type Param = Vec<AstNode>;
@@ -31,6 +31,18 @@ pub enum AstNode {
     IfStmt(Box<AstNode>, StmtBlock, StmtBlock),
 }
 
+impl fmt::Display for AstNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+pub fn display_module(m: Vec<AstNode>) {
+    for n in m {
+        println!("{}\n", n)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Operator {
     OpOr,
@@ -50,20 +62,32 @@ pub enum Operator {
     OpUnknown,
 }
 
-
-pub fn typeof_operator(op: String) -> Operator {
-    match &op[..] {
-         "||" => Operator::OpOr,
-         "=" => Operator::OpAssign,
-         "&&" => Operator::OpAnd,
-         "==" => Operator::OpEq,
-         "!=" => Operator::OpNe,
-         "<=" => Operator::OpLe,
-         ">=" => Operator::OpGe,
-         "<" => Operator::OpLt,
-         ">" => Operator::OpGt,
-         "!" => Operator::OpNot,
-
-         _ => Operator::OpUnknown,
+impl fmt::Display for Operator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let s = match *self {
+            Operator::OpOr => "||",
+            Operator::OpAssign => "=",
+            Operator::OpAnd => "&&",
+            Operator::OpEq => "==",
+            Operator::OpNe => "!=",
+            Operator::OpGe => ">=",
+            Operator::OpLe => "<=",
+            Operator::OpGt => ">",
+            Operator::OpLt => "<",
+            Operator::OpNot => "!",
+            Operator::OpPlus => "+",
+            Operator::OpSub => "-",
+            Operator::OpMul => "*",
+            Operator::OpDiv => "/",
+            _ => "UnKnown",
+        };
+        s.fmt(f)
     }
+}
+
+
+#[test]
+fn ast_show_test() {
+    let val = AstNode::Int(12);
+    println!("node:{}", val);
 }

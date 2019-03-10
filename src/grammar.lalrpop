@@ -13,6 +13,7 @@ pub Statement: AstNode = {
     <Fn: FnDecl> => Fn,
     <If: IfStmt> => If,
     <AssignStmt> ";" => <>,
+    <WhileStmt> => <>,
 }
 
 Expr: AstNode = {
@@ -33,12 +34,18 @@ ValExpr: AstNode = {
 }
 
 IfStmt: AstNode = {
-    <s:@L> "if" <cond: Expr> <Tblock: StmtBlock> <e:@L> => {
-        AstNode::IfStmt(Box::new(cond), Tblock, Vec::new())
+    <s:@L> "if" <cond: Expr> <tblock: Stmtblock> <e:@L> => {
+        AstNode::IfStmt(Box::new(cond), tblock, Vec::new())
     },
-    <s:@L> "if" <cond: Expr> <Tblock: StmtBlock> "else" <Fblock: StmtBlock> <e:@L> => {
-        AstNode::IfStmt(Box::new(cond), Tblock, Fblock)
+    <s:@L> "if" <cond: Expr> <tblock: Stmtblock> "else" <fblock: Stmtblock> <e:@L> => {
+        AstNode::IfStmt(Box::new(cond), tblock, fblock)
     }
+}
+
+WhileStmt: AstNode = {
+    <s:@L> "while" <cond: Expr> <tblock: Stmtblock> <e:@L> => {
+        AstNode::WhileStmt(Box::new(cond), tblock)
+    },
 }
 
 AssignStmt: AstNode = {
@@ -59,6 +66,7 @@ BinaryOpObj: AstNode = {
     Float => <>,
     Str => <>,
     FnCall => <>,
+    MathStmt,
 }
 
 // + - * /
@@ -82,7 +90,7 @@ FnCall: AstNode = {
      <s:@L> <Fn:Ident> <args:FnArgs> <e:@L> => AstNode::FnCall(Box::new(Fn), args)
 }
 
-StmtBlock: Vec<AstNode> = {
+Stmtblock: Vec<AstNode> = {
    "{" <v:(<Statement>)*> <e:(Expr)?> "}" => match e {
         None => v,
         Some(e) => {
@@ -109,10 +117,10 @@ Comma<T>: Vec<T> = {
 }
 
 FnDecl: AstNode = {
-    <s:@L> <p:"pub"?> "fn" <name: Ident> <args: FnDeclArgs> <rtype: FnRtype> <block: StmtBlock> <e:@L> => {
+    <s:@L> <p:"pub"?> "fn" <name: Ident> <args: FnDeclArgs> <rtype: FnRtype> <block: Stmtblock> <e:@L> => {
         AstNode::FnDecl(Box::new(name), args, Box::new(rtype), block)
     },
-    <s:@L> <p:"pub"?> "fn" <name: Ident> <args: FnDeclArgs> <block: StmtBlock> <e:@L> => {
+    <s:@L> <p:"pub"?> "fn" <name: Ident> <args: FnDeclArgs> <block: Stmtblock> <e:@L> => {
         AstNode::FnDecl(Box::new(name), args, Box::new(AstNode::Int(0)), block)
     }
 }

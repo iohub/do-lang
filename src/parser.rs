@@ -35,8 +35,13 @@ fn module_test() {
         
         fn main() {
             a = calc(a10, val1) + d + calc(a, val100);
+            while a > b + 100 + c {
+                b = a + calc(v1, v2);
+            }
         }
     "#;
     println!("{}", sources);
-    ModuleParser::new().parse(sources).unwrap();
+    let nodes = ModuleParser::new().parse(sources).unwrap();
+    println!("node:{}", nodes.len());
+    display_module(nodes);
 }
