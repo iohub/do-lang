@@ -25,18 +25,20 @@ fn module_test() {
     use crate::grammar::ModuleParser;
     let sources = r#"
         fn eq(a: int, b: int) {
+            let c = a + 1001;
+            let d;
             if a > 100 {
                 a = b + 1000 + c + d;
                 add(a, b);
             }
             a == b
         }
-        a = b + 1000 + c + d;
+        let a = b + 1000 + c + d;
         
         fn main() {
             a = calc(a10, val1) + d + calc(a, val100);
             while a > b + 100 + c {
-                b = a + calc(v1, v2);
+                let b = a + calc(v1, v2);
             }
         }
     "#;

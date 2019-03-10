@@ -13,9 +13,8 @@ pub enum AstNode {
     Int(i32),
     Float(f32),
     Str(String),
-    Eof,
+    Nil,
 
-    // name: String, typeid: i32
     Ident(String),
     // Fn: Identifer, param: Vec<Identifer>, rtype: Ident, block<Statement>
     FnDecl(Box<AstNode>, Param, Box<AstNode>, StmtBlock),

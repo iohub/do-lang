@@ -14,6 +14,7 @@ pub Statement: AstNode = {
     <If: IfStmt> => If,
     <AssignStmt> ";" => <>,
     <WhileStmt> => <>,
+    <LetStmt> => <>,
 }
 
 Expr: AstNode = {
@@ -42,6 +43,15 @@ IfStmt: AstNode = {
     }
 }
 
+LetStmt: AstNode = {
+    <s:@L> "let" <var: Ident> ";" <e:@L> => {
+        AstNode::VarDecl(Box::new(var), Box::new(AstNode::Nil))
+    },
+    <s:@L> "let" <var: Ident> "=" <val: ValObj> ";" <e:@L> => {
+        AstNode::VarDecl(Box::new(var), Box::new(val))
+    }
+}
+
 WhileStmt: AstNode = {
     <s:@L> "while" <cond: Expr> <tblock: Stmtblock> <e:@L> => {
         AstNode::WhileStmt(Box::new(cond), tblock)
@@ -55,12 +65,12 @@ AssignStmt: AstNode = {
 }
 
 BinaryLogicExpr: AstNode = {
-    <s:@L> <obj1:BinaryOpObj> <op:BinLogicOp> <obj2:BinaryOpObj> <e:@L> => {
+    <s:@L> <obj1:ValObj> <op:BinLogicOp> <obj2:ValObj> <e:@L> => {
         AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2))
     }
 }
 
-BinaryOpObj: AstNode = {
+ValObj: AstNode = {
     Ident => <>,
     Int => <>,
     Float => <>,
