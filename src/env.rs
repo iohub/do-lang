@@ -1,6 +1,6 @@
 
 use std::collections::HashMap;
-use crate::typ::AstType;
+use crate::ast::AstType;
 
 type DefTable = HashMap<String, AstType>;
 type Scope = Vec<DefTable>;

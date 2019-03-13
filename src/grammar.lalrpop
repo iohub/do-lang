@@ -45,10 +45,10 @@ IfStmt: AstNode = {
 
 LetStmt: AstNode = {
     <s:@L> "let" <var: Ident> ";" <e:@L> => {
-        AstNode::VarDecl(Box::new(var), Box::new(AstNode::Nil))
+        AstNode::VarDecl(Box::new(var), Box::new(AstNode::Nil), AstType::Unknown)
     },
     <s:@L> "let" <var: Ident> "=" <val: ValObj> ";" <e:@L> => {
-        AstNode::VarDecl(Box::new(var), Box::new(val))
+        AstNode::VarDecl(Box::new(var), Box::new(val), AstType::Unknown)
     }
 }
 
@@ -66,7 +66,7 @@ AssignStmt: AstNode = {
 
 BinaryLogicExpr: AstNode = {
     <s:@L> <obj1:ValObj> <op:BinLogicOp> <obj2:ValObj> <e:@L> => {
-        AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2))
+        AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2), AstType::Unknown)
     }
 }
 
@@ -89,10 +89,10 @@ NumOpObj: AstNode = {
 
 MathStmt: AstNode = {
     <s:@L> <obj1: NumOpObj> <op: MathOp> <obj2: NumOpObj> <e:@L> => {
-        AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2))
+        AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2), AstType::Unknown)
     },
     <s:@L> <obj1: MathStmt> <op: MathOp> <obj2: NumOpObj> <e:@L> => {
-        AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2))
+        AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2), AstType::Unknown)
     }
 }
 
@@ -127,16 +127,16 @@ Comma<T>: Vec<T> = {
 }
 
 FnDecl: AstNode = {
-    <s:@L> <p:"pub"?> "fn" <name: Ident> <args: FnDeclArgs> <rtype: FnRtype> <block: Stmtblock> <e:@L> => {
-        AstNode::FnDecl(Box::new(name), args, Box::new(rtype), block)
+    <s:@L> <p:"pub"?> "fn" <name: Ident> <args: FnDeclArgs> "->" <rtype: RawIdent> <block: Stmtblock> <e:@L> => {
+        AstNode::FnDecl(Box::new(name), args, block, AstType::Ext(rtype))
     },
     <s:@L> <p:"pub"?> "fn" <name: Ident> <args: FnDeclArgs> <block: Stmtblock> <e:@L> => {
-        AstNode::FnDecl(Box::new(name), args, Box::new(AstNode::Int(0)), block)
+        AstNode::FnDecl(Box::new(name), args, block, AstType::Int)
     }
 }
 
-FnRtype: AstNode = {
-    "->" <t: Ident> => t
+RawIdent: String = {
+    <v:r"[A-Za-z_][A-Za-z_0-9]*"> => v.to_string()
 }
 
 FnDeclArgs: Vec<AstNode> = {
@@ -151,12 +151,17 @@ FnDeclArgs: Vec<AstNode> = {
 }
 
 ColonArg: AstNode = {
-    <n: Ident> ":" <t: Ident> => t
+    <n: RawIdent> ":" <t: RawIdent> => {
+        let typ = typeof_ident(&t);
+        AstNode::Ident(n, typ)
+    }
 }
 
-
 Ident: AstNode = {
-    <v:r"[A-Za-z_][A-Za-z_0-9]*"> => AstNode::Ident(v.to_string())
+    <v:r"[A-Za-z_][A-Za-z_0-9]*"> => {
+        let typ = typeof_ident(&v.to_string());
+        AstNode::Ident(v.to_string(), typ)
+    }
 }
 
 BinLogicOp: Operator = {

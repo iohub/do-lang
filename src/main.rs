@@ -1,7 +1,6 @@
 
 mod ast;
 mod parser;
-mod typ;
 mod env;
 
 #[macro_use] 

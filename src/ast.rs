@@ -1,5 +1,4 @@
 use std::fmt;
-use crate::typ::*;
 
 pub type StmtBlock = Vec<AstNode>;
 pub type Param = Vec<AstNode>;
@@ -10,20 +9,42 @@ pub struct Module {
 }
 
 #[derive(Debug, Clone)]
+pub enum AstType {
+    Int,
+    Float,
+    Str,
+    Bool,
+    // TODO: extend type: struct, enum, interface ...
+    Ext(String),
+    Unknown,
+}
+
+pub fn typeof_ident(v: &String) -> AstType {
+    let v2 = v.to_lowercase();
+    match &v2[..] {
+        "int" => AstType::Int,
+        "float" => AstType::Float,
+        "str" => AstType::Str,
+        "bool" => AstType::Bool,
+        _ => AstType::Ext(v2),
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum AstNode {
     Int(i32),
     Float(f32),
     Str(String),
     Nil,
 
-    Ident(String),
+    Ident(String, AstType),
     // Fn: Identifer, param: Vec<Identifer>, rtype: Ident, block<Statement>
-    FnDecl(Box<AstNode>, Param, Box<AstNode>, StmtBlock),
+    FnDecl(Box<AstNode>, Param, StmtBlock, AstType),
     // Fn: Identifer, param: Vec<Identifer>
     FnCall(Box<AstNode>, Param),
-    BinaryOp(Box<AstNode>, Operator, Box<AstNode>),
+    BinaryOp(Box<AstNode>, Operator, Box<AstNode>, AstType),
     UnaryOp(Operator, Box<AstNode>),
-    VarDecl(Box<AstNode>, Box<AstNode>),
+    VarDecl(Box<AstNode>, Box<AstNode>, AstType),
     Assignment(Box<AstNode>, Box<AstNode>),
     // conditional, block
     WhileStmt(Box<AstNode>, StmtBlock),
