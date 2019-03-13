@@ -1,4 +1,5 @@
 use std::fmt;
+use crate::typ::*;
 
 pub type StmtBlock = Vec<AstNode>;
 pub type Param = Vec<AstNode>;
@@ -28,6 +29,11 @@ pub enum AstNode {
     WhileStmt(Box<AstNode>, StmtBlock),
     // conditional, T-block, F-block
     IfStmt(Box<AstNode>, StmtBlock, StmtBlock),
+}
+
+#[derive(Debug, Clone)]
+pub enum TypedAst {
+    Node(AstNode, AstType)
 }
 
 impl fmt::Display for AstNode {

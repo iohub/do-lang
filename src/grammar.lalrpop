@@ -112,7 +112,7 @@ Stmtblock: Vec<AstNode> = {
 }
 
 FnArgs: Vec<AstNode> = {
-    "(" <args:Comma<Ident>> ")" => args
+    "(" <args:Comma<ValObj>> ")" => args
 }
 
 Comma<T>: Vec<T> = {
