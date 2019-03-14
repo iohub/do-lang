@@ -127,11 +127,12 @@ Comma<T>: Vec<T> = {
 }
 
 FnDecl: AstNode = {
-    <s:@L> <p:"pub"?> "fn" <name: Ident> <args: FnDeclArgs> "->" <rtype: RawIdent> <block: Stmtblock> <e:@L> => {
-        AstNode::FnDecl(Box::new(name), args, block, AstType::Ext(rtype))
+    <s:@L> <p:"pub"?> "fn" <name: RawIdent> <args: FnDeclArgs> "->" <rtype: RawIdent> <block: Stmtblock> <e:@L> => {
+        let typ = typeof_ident(&rtype);
+        AstNode::FnDecl(Box::new(AstNode::Ident(name, typ)), args, block)
     },
-    <s:@L> <p:"pub"?> "fn" <name: Ident> <args: FnDeclArgs> <block: Stmtblock> <e:@L> => {
-        AstNode::FnDecl(Box::new(name), args, block, AstType::Int)
+    <s:@L> <p:"pub"?> "fn" <name: RawIdent> <args: FnDeclArgs> <block: Stmtblock> <e:@L> => {
+        AstNode::FnDecl(Box::new(AstNode::Ident(name, AstType::Int)), args, block)
     }
 }
 

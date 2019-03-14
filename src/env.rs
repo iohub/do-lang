@@ -1,13 +1,21 @@
 
 use std::collections::HashMap;
 use crate::ast::AstType;
+use std::fmt;
 
 type DefTable = HashMap<String, AstType>;
 type Scope = Vec<DefTable>;
 
+#[derive(Debug)]
 pub struct Env {
     pub global: DefTable,
     pub local: Scope,
+}
+
+impl fmt::Display for Env {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 impl Env {
@@ -17,19 +25,26 @@ impl Env {
             local: Vec::new(),
         }
     }
-    fn global_def(&mut self, var: String, t: AstType) {
+    pub fn global_def(&mut self, var: String, t: AstType) {
         self.global.insert(var, t);
     }
 
-    fn global_has(&mut self, var: &String) -> bool {
+    pub fn global_has(&mut self, var: &String) -> bool {
         self.global.contains_key(var)
     }
 
-    fn enter_scope(&mut self) {
+    pub fn enter_scope(&mut self) {
         self.local.push(HashMap::new());
     }
 
-    fn leave_scope(&mut self) {
+    pub fn local_def(&mut self, var: String, t: AstType) {
+        if let Some(mut top) = self.local.pop() {
+            top.insert(var, t);
+            self.local.push(top);
+        }
+    }
+
+    pub fn leave_scope(&mut self) {
         self.local.pop();
     }
 

@@ -1,9 +1,9 @@
 
 
-
 #[test]
 fn module_test() {
     use crate::ast::*;
+    use crate::semantic::check;
     use crate::grammar::ModuleParser;
     let sources = r#"
         fn foo1(a: int, b: int) -> int {
@@ -30,5 +30,6 @@ fn module_test() {
     "#;
     println!("{}", sources);
     let nodes = ModuleParser::new().parse(sources).unwrap();
-    display_module(nodes);
+    // display_module(nodes);
+    check(nodes);
 }

@@ -30,6 +30,12 @@ pub fn typeof_ident(v: &String) -> AstType {
     }
 }
 
+impl fmt::Display for AstType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum AstNode {
     Int(i32),
@@ -39,7 +45,7 @@ pub enum AstNode {
 
     Ident(String, AstType),
     // Fn: Identifer, param: Vec<Identifer>, rtype: Ident, block<Statement>
-    FnDecl(Box<AstNode>, Param, StmtBlock, AstType),
+    FnDecl(Box<AstNode>, Param, StmtBlock),
     // Fn: Identifer, param: Vec<Identifer>
     FnCall(Box<AstNode>, Param),
     BinaryOp(Box<AstNode>, Operator, Box<AstNode>, AstType),
