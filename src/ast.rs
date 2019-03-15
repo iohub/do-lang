@@ -8,7 +8,7 @@ pub struct Module {
     pub body: StmtBlock,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AstType {
     Int,
     Float,
@@ -69,11 +69,6 @@ impl fmt::Display for AstNode {
     }
 }
 
-pub fn display_module(m: Vec<AstNode>) {
-    for n in m {
-        println!("{}\n", n)
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Operator {

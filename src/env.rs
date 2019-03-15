@@ -14,7 +14,7 @@ pub struct Env {
 
 impl fmt::Display for Env {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{:#?}", self)
     }
 }
 
@@ -25,6 +25,7 @@ impl Env {
             local: Vec::new(),
         }
     }
+
     pub fn global_def(&mut self, var: String, t: AstType) {
         self.global.insert(var, t);
     }
@@ -33,15 +34,28 @@ impl Env {
         self.global.contains_key(var)
     }
 
+    pub fn global_resolve(&mut self, var: &String) -> Option<&AstType> {
+        self.global.get(var)
+    }
+
     pub fn enter_scope(&mut self) {
         self.local.push(HashMap::new());
     }
 
-    pub fn local_def(&mut self, var: String, t: AstType) {
+    pub fn local_def(&mut self, var: &String, t: AstType) {
         if let Some(mut top) = self.local.pop() {
-            top.insert(var, t);
+            top.insert(var.to_string(), t);
             self.local.push(top);
         }
+    }
+
+    pub fn local_has(&mut self, var: &String) -> bool {
+        let mut ok = false;
+        if let Some(top) = self.local.pop() {
+            ok = top.contains_key(var);
+            self.local.push(top);
+        }
+        ok
     }
 
     pub fn leave_scope(&mut self) {
