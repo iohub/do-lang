@@ -13,34 +13,39 @@ pub fn check(m: Vec<AstNode>) {
     }
 }
 
-fn prototype_fn(ident: String, p: &Vec<AstNode>) -> String {
-    ident + &join_param(p)
+fn prototype_fn(ev: &mut Env, ident: String, p: &Vec<AstNode>) -> String {
+    ident + &join_param(ev, p)
+}
+
+fn ident_name(ident: &AstNode) -> String {
+    match ident {
+        AstNode::Ident(var, typ) => var.clone(),
+        _ => "fuck".to_string(),
+    }
 }
 
 fn check_fndecl(ev: &mut Env, n: AstNode) {
     if let AstNode::FnDecl(ident, param, block) = n {
-        let proto = prototype_fn(ident.to_string(), &param);
+        let proto = prototype_fn(ev, ident_name(&ident), &param);
         if let AstNode::Ident(_, typ) = *ident {
             ev.global_def(&proto, typ);
             ev.enter_scope();
             define_local_var(ev, &param);
         }
         check_stmtblock(ev, &block);
+        println!("{}", ev);
         ev.leave_scope();
     }
 }
 
 fn check_stmtblock(ev: &mut Env, block: &Vec<AstNode>) {
+    // <expr: Expr>
+    // <If: IfStmt>
+    // <WhileStmt>
     for stmt in block {
         match stmt {
-            AstNode::VarDecl(var, val, typ) => {
-                println!("{}-{}-{}", var, val, typ);
-                check_vardecl(ev, stmt.clone(), false);
-                println!("{}", ev);
-            }
-            AstNode::Assignment(_, _) => {
-                check_assignstmt(ev, stmt.clone());
-            }
+            AstNode::VarDecl(var, val, typ) => { check_vardecl(ev, stmt.clone(), false); }
+            AstNode::Assignment(_, _) => { check_assignstmt(ev, stmt.clone()); }
             _ => (),
         }
     }
@@ -49,7 +54,6 @@ fn check_stmtblock(ev: &mut Env, block: &Vec<AstNode>) {
 fn check_assignstmt(ev: &mut Env, n: AstNode) {
     if let AstNode::Assignment(var, valexpr) = n {
         if let AstNode::Ident(vname, _) = *var {
-            println!("resolve: {}", vname);
             let ltyp = ev.resolve(&vname).unwrap();
             let rtyp = typeof_valexpr(ev, &*valexpr);
             if ltyp != AstType::Unknown && ltyp != rtyp {
@@ -78,11 +82,11 @@ fn typeof_valexpr(ev: &mut Env, n: &AstNode) -> AstType {
         AstNode::BinaryOp(lhs, op, rhs, typ) => {
             typeof_binary_op(ev, n.clone())
         },
-        _ => typeof_valobj(ev, n.clone()),
+        _ => typeof_valobj(ev, n),
     }
 }
 
-fn typeof_valobj(ev: &mut Env, n: AstNode) -> AstType {
+fn typeof_valobj(ev: &mut Env, n: &AstNode) -> AstType {
     match n {
         AstNode::Int(_) => AstType::Int,
         AstNode::Float(_) => AstType::Float,
@@ -94,7 +98,7 @@ fn typeof_valobj(ev: &mut Env, n: AstNode) -> AstType {
             ev.resolve(&var).unwrap()
         }
         AstNode::FnCall(ident, param) => {
-            let proto = prototype_fn(ident.to_string(), &param);
+            let proto = prototype_fn(ev, ident_name(&ident), &param);
             match ev.global_resolve(&proto) {
                 Some(typ) => typ.clone(),
                 None => panic!("cann't resolve fn proto:{}", proto),
@@ -110,10 +114,10 @@ fn typeof_binary_op(ev: &mut Env, n: AstNode) -> AstType {
         if !is_match_op(op) {
             panic!("unexpected operator:{}", op);
         }
-        let rtyp = typeof_valobj(ev, *rhs);
+        let rtyp = typeof_valobj(ev, &*rhs);
         let ltyp = match *lhs {
             AstNode::BinaryOp(_, _, _, _) => typeof_binary_op(ev, *lhs),
-            _ => typeof_valobj(ev, *lhs),
+            _ => typeof_valobj(ev, &*lhs),
         };
         if rtyp != ltyp {
             panic!("unexpected {} == {}", ltyp, rtyp);
@@ -139,12 +143,28 @@ fn define_local_var(ev: &mut Env, p: &Vec<AstNode>) {
     }
 }
 
-fn join_param(p: &Vec<AstNode>) -> String {
-    let mut typs = Vec::new();
-    for item in p {
-        if let AstNode::Ident(_, typ) = item {
-            typs.push(typ.to_string());
+fn typeof_param(ev: &mut Env, n: AstNode) -> AstType {
+    let mut rtyp = AstType::Unknown;
+    if let AstNode::Ident(name, typ) = n {
+        match typ {
+            AstType::Ext(name) => {
+                rtyp = ev.resolve(&name).unwrap();
+            },
+            _ => rtyp = typ
         }
+    }
+    rtyp
+}
+
+fn join_param(ev: &mut Env, p: &Vec<AstNode>) -> String {
+    let mut typs = Vec::new();
+    let mut typ: AstType;
+    for item in p {
+        match item {
+            AstNode::Ident(_, _) => { typ = typeof_param(ev, item.clone()); },
+            _ => { typ = typeof_valexpr(ev, item); }
+        }
+        typs.push(typ.to_string());
     }
     return typs.concat();
 }
