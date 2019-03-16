@@ -26,8 +26,8 @@ impl Env {
         }
     }
 
-    pub fn global_def(&mut self, var: String, t: AstType) {
-        self.global.insert(var, t);
+    pub fn global_def(&mut self, var: &String, t: AstType) {
+        self.global.insert(var.clone(), t);
     }
 
     pub fn global_has(&mut self, var: &String) -> bool {
@@ -63,14 +63,24 @@ impl Env {
     }
 
     pub fn resolve(&self, var: &String) -> Option<AstType> {
-        let mut stk = self.local.clone();
-        stk.reverse();
+        let mut stk = self.local.clone(); stk.reverse();
         for s in stk.iter() {
             if s.contains_key(var) {
                 return s.get(var).cloned();
             }
         }
-        return None;
+        self.global.get(var).cloned()
+    }
+
+    pub fn update(&mut self, var: &String, typ: AstType) {
+        let len = self.local.len();
+        for idx in 0..len {
+            if self.local[len-idx-1].contains_key(var) {
+                self.local[len-idx-1].entry(var.clone()).and_modify(|e| { *e = typ.clone() });
+                return ;
+            }
+        }
+        self.global.entry(var.clone()).and_modify(|e| { *e = typ.clone() });
     }
 
     pub fn can_resolve(&self, var: &String) -> bool {

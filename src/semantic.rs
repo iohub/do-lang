@@ -5,7 +5,11 @@ pub fn check(m: Vec<AstNode>) {
     let mut ev = Env::new();
     for node in m {
         println!("{}", node);
-        check_fndecl(&mut ev, node);
+        match node {
+            AstNode::FnDecl(_, _, _) => check_fndecl(&mut ev, node),
+            AstNode::VarDecl(_, _, _) => check_vardecl(&mut ev, node, true),
+            _ => (),
+        }
     }
 }
 
@@ -15,14 +19,12 @@ fn prototype_fn(ident: String, p: &Vec<AstNode>) -> String {
 
 fn check_fndecl(ev: &mut Env, n: AstNode) {
     if let AstNode::FnDecl(ident, param, block) = n {
-        // let proto = ident.to_string() + &join_param(&param);
         let proto = prototype_fn(ident.to_string(), &param);
         if let AstNode::Ident(_, typ) = *ident {
-            ev.global_def(proto, typ);
+            ev.global_def(&proto, typ);
             ev.enter_scope();
             define_local_var(ev, &param);
         }
-        println!("{}", ev);
         check_stmtblock(ev, &block);
         ev.leave_scope();
     }
@@ -33,22 +35,41 @@ fn check_stmtblock(ev: &mut Env, block: &Vec<AstNode>) {
         match stmt {
             AstNode::VarDecl(var, val, typ) => {
                 println!("{}-{}-{}", var, val, typ);
-                check_vardecl(ev, stmt.clone());
+                check_vardecl(ev, stmt.clone(), false);
+                println!("{}", ev);
+            }
+            AstNode::Assignment(_, _) => {
+                check_assignstmt(ev, stmt.clone());
             }
             _ => (),
         }
     }
 }
 
-fn check_vardecl(ev: &mut Env, n: AstNode) {
+fn check_assignstmt(ev: &mut Env, n: AstNode) {
+    if let AstNode::Assignment(var, valexpr) = n {
+        if let AstNode::Ident(vname, _) = *var {
+            println!("resolve: {}", vname);
+            let ltyp = ev.resolve(&vname).unwrap();
+            let rtyp = typeof_valexpr(ev, &*valexpr);
+            if ltyp != AstType::Unknown && ltyp != rtyp {
+                panic!("unmatch {} {}", ltyp, rtyp);
+            }
+        }
+    }
+}
+
+fn check_vardecl(ev: &mut Env, n: AstNode, global: bool) {
     if let AstNode::VarDecl(var, val, typ) = n.clone() {
         if let AstNode::Ident(vname, _) = *var {
-            if ev.local_has(&vname) {
+            if ev.can_resolve(&vname) {
                 panic!("redefine '{}'", vname);
             }
-            ev.local_def(&vname, typ);
+            if global { ev.global_def(&vname, typ); }
+            else { ev.local_def(&vname, typ); }
+            let vtyp = typeof_valexpr(ev, &val);
+            ev.update(&vname, vtyp);
         }
-        let vtyp = typeof_valexpr(ev, &n);
     }
 }
 
@@ -66,7 +87,12 @@ fn typeof_valobj(ev: &mut Env, n: AstNode) -> AstType {
         AstNode::Int(_) => AstType::Int,
         AstNode::Float(_) => AstType::Float,
         AstNode::Str(_) => AstType::Str,
-        AstNode::Ident(_, typ) => typ,
+        AstNode::Ident(var, typ) => {
+            if !ev.can_resolve(&var) {
+                panic!("cann't resolve {}", var);
+            }
+            ev.resolve(&var).unwrap()
+        }
         AstNode::FnCall(ident, param) => {
             let proto = prototype_fn(ident.to_string(), &param);
             match ev.global_resolve(&proto) {
@@ -74,6 +100,7 @@ fn typeof_valobj(ev: &mut Env, n: AstNode) -> AstType {
                 None => panic!("cann't resolve fn proto:{}", proto),
             }
         },
+        AstNode::Nil => AstType::Unknown,
         _ => panic!("unexpected astnode:{}", n),
     }
 }
@@ -89,7 +116,7 @@ fn typeof_binary_op(ev: &mut Env, n: AstNode) -> AstType {
             _ => typeof_valobj(ev, *lhs),
         };
         if rtyp != ltyp {
-            panic!("unexpected {}", rtyp);
+            panic!("unexpected {} == {}", ltyp, rtyp);
         }
         return rtyp;
     }
