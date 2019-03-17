@@ -89,6 +89,15 @@ pub enum Operator {
     OpUnknown,
 }
 
+
+pub fn is_logic_op(op: Operator) -> bool {
+    match op {
+        Operator::OpEq | Operator::OpNe | Operator::OpLe | Operator::OpGe |
+        Operator::OpLt | Operator::OpGt | Operator::OpOr | Operator::OpAnd => true,
+        _ => false,
+    }
+}
+
 impl fmt::Display for Operator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let s = match *self {
