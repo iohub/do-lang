@@ -10,8 +10,8 @@ pub Module: Vec<AstNode> = {
 
 pub Statement: AstNode = {
     <expr: Expr> ";" => expr,
-    <Fn: FnDecl> => Fn,
-    <If: IfStmt> => If,
+    <fdecl: FnDecl> => fdecl,
+    <ifstmt: IfStmt> => ifstmt,
     <AssignStmt> ";" => <>,
     <WhileStmt> => <>,
     <LetStmt> => <>,
@@ -97,7 +97,7 @@ MathStmt: AstNode = {
 }
 
 FnCall: AstNode = {
-     <s:@L> <Fn:Ident> <args:FnArgs> <e:@L> => AstNode::FnCall(Box::new(Fn), args)
+     <s:@L> <fname:Ident> <args:FnArgs> <e:@L> => AstNode::FnCall(Box::new(fname), args)
 }
 
 Stmtblock: Vec<AstNode> = {

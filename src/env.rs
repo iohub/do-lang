@@ -49,7 +49,7 @@ impl Env {
         }
     }
 
-    pub fn local_has(&mut self, var: &String) -> bool {
+    pub fn _local_has(&mut self, var: &String) -> bool {
         let mut ok = false;
         if let Some(top) = self.local.pop() {
             ok = top.contains_key(var);
@@ -85,7 +85,7 @@ impl Env {
 
     pub fn can_resolve(&self, var: &String) -> bool {
         match self.resolve(var) {
-            Some(e) => true,
+            Some(_) => true,
             _ => false,
         }
     }

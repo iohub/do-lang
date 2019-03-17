@@ -1,7 +1,7 @@
 use crate::ast::*;
 use crate::env::*;
 
-pub fn check(stmt: Vec<AstNode>) {
+pub fn semantic_check(stmt: Vec<AstNode>) {
     let mut ev = Env::new();
     for node in stmt {
         println!("[check]:{}", node);
@@ -19,7 +19,7 @@ fn prototype_fn(ev: &mut Env, ident: String, p: &Vec<AstNode>) -> String {
 
 fn ident_name(ident: &AstNode) -> String {
     match ident {
-        AstNode::Ident(var, typ) => var.clone(),
+        AstNode::Ident(var, _) => var.clone(),
         _ => "fuck".to_string(),
     }
 }
@@ -42,7 +42,7 @@ fn check_fndecl(ev: &mut Env, n: AstNode) {
 fn check_stmtblock(ev: &mut Env, block: &Vec<AstNode>) {
     for stmt in block {
         match stmt {
-            AstNode::VarDecl(var, val, typ) => { check_vardecl(ev, stmt.clone(), false); }
+            AstNode::VarDecl(_, _, _) => { check_vardecl(ev, stmt.clone(), false); }
             AstNode::Assignment(_, _) => { check_assignstmt(ev, stmt.clone()); },
             AstNode::IfStmt(cond, tblock, fblock) => {
                 if typeof_bool_expr(ev, &cond.clone()) == AstType::Unknown {
@@ -171,7 +171,7 @@ fn define_local_var(ev: &mut Env, p: &Vec<AstNode>) {
 
 fn typeof_param(ev: &mut Env, n: AstNode) -> AstType {
     let mut rtyp = AstType::Unknown;
-    if let AstNode::Ident(name, typ) = n {
+    if let AstNode::Ident(_, typ) = n {
         match typ {
             AstType::Ext(name) => {
                 rtyp = ev.resolve(&name).unwrap();
@@ -198,7 +198,7 @@ fn join_param(ev: &mut Env, p: &Vec<AstNode>) -> String {
 #[test]
 fn module_test() {
     use crate::ast::*;
-    use crate::semantic::check;
+    use crate::semantic::*;
     use crate::grammar::ModuleParser;
     let sources = r#"
         fn foo1(a: int, b: int) -> int {
@@ -225,5 +225,5 @@ fn module_test() {
     "#;
     println!("{}", sources);
     let nodes = ModuleParser::new().parse(sources).unwrap();
-    check(nodes);
+    semantic_check(nodes);
 }

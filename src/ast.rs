@@ -69,7 +69,6 @@ impl fmt::Display for AstNode {
     }
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Operator {
     OpOr,
