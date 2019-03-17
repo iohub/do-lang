@@ -21,8 +21,14 @@ fn main() {
             }
             a
         }
+
         fn foo2(a: int) -> bool {
             a == 100
+        }
+
+        fn fact(n: int) -> int {
+            if n == 1 { return 1; }
+            else { return 1001; }
         }
 
         let a = 1000 + 10;

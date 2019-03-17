@@ -56,6 +56,7 @@ pub enum AstNode {
     WhileStmt(Box<AstNode>, StmtBlock),
     // conditional, T-block, F-block
     IfStmt(Box<AstNode>, StmtBlock, StmtBlock),
+    ReturnStmt(Box<AstNode>, AstType),
 }
 
 #[derive(Debug, Clone)]

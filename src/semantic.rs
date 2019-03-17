@@ -57,6 +57,11 @@ fn check_stmtblock(ev: &mut Env, block: &Vec<AstNode>) {
                 }
                 check_stmtblock(ev, block);
             }
+            AstNode::ReturnStmt(expr, _) => {
+                if typeof_value_expr(ev, &expr.clone()) == AstType::Unknown {
+                    panic!("typeof_value_expr");
+                }
+            }
             _ => {
                 if typeof_bool_expr(ev, &stmt.clone()) == AstType::Unknown {
                     panic!("typeof_bool_expr");
@@ -70,7 +75,7 @@ fn check_assignstmt(ev: &mut Env, n: AstNode) {
     if let AstNode::Assignment(var, valexpr) = n {
         if let AstNode::Ident(vname, _) = *var {
             let ltyp = ev.resolve(&vname).unwrap();
-            let rtyp = typeof_valexpr(ev, &*valexpr);
+            let rtyp = typeof_value_expr(ev, &*valexpr);
             if ltyp == AstType::Unknown { ev.update(&vname, rtyp) }
             else if ltyp != rtyp {
                 panic!("unmatch {} {}", ltyp, rtyp);
@@ -87,13 +92,13 @@ fn check_vardecl(ev: &mut Env, n: AstNode, global: bool) {
             }
             if global { ev.global_def(&vname, typ); }
             else { ev.local_def(&vname, typ); }
-            let vtyp = typeof_valexpr(ev, &val);
+            let vtyp = typeof_value_expr(ev, &val);
             ev.update(&vname, vtyp);
         }
     }
 }
 
-fn typeof_valexpr(ev: &mut Env, n: &AstNode) -> AstType {
+fn typeof_value_expr(ev: &mut Env, n: &AstNode) -> AstType {
     match n {
         AstNode::BinaryOp(_, op, _, _) => {
             if !is_math_op(*op) { panic!("unmatch math Operator{}", op); }
@@ -132,7 +137,7 @@ fn typeof_valobj(ev: &mut Env, n: &AstNode) -> AstType {
                 None => panic!("cann't resolve fn proto:{}", proto),
             }
         },
-        AstNode::BinaryOp(_, _, _, _) => typeof_valexpr(ev, n),
+        AstNode::BinaryOp(_, _, _, _) => typeof_value_expr(ev, n),
         AstNode::Nil => AstType::Unknown,
         _ => panic!("unexpected astnode:{}", n),
     }
@@ -183,16 +188,16 @@ fn typeof_param(ev: &mut Env, n: AstNode) -> AstType {
 }
 
 fn join_param(ev: &mut Env, p: &Vec<AstNode>) -> String {
-    let mut typs = Vec::new();
+    let mut typs = vec![":".to_string()];
     let mut typ: AstType;
     for item in p {
         match item {
             AstNode::Ident(_, _) => { typ = typeof_param(ev, item.clone()); },
-            _ => { typ = typeof_valexpr(ev, item); }
+            _ => { typ = typeof_value_expr(ev, item); }
         }
         typs.push(typ.to_string());
     }
-    return typs.concat();
+    return typs.join("-");
 }
 
 #[test]
@@ -209,8 +214,14 @@ fn module_test() {
             }
             a
         }
+
         fn foo2(a: int) -> bool {
             a == 100
+        }
+
+        fn fact(n: int) -> int {
+            if n == 1 { return 1; }
+            else { return fact(n - 1) * n; }
         }
 
         let a = 1000 + 10;

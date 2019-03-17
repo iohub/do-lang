@@ -15,6 +15,7 @@ pub Statement: AstNode = {
     <AssignStmt> ";" => <>,
     <WhileStmt> => <>,
     <LetStmt> => <>,
+    <ReturnExpr> ";" => <>,
 }
 
 Expr: AstNode = {
@@ -32,6 +33,12 @@ ValExpr: AstNode = {
     Float => <>,
     Int => <>,
     Str => <>,
+}
+
+ReturnExpr: AstNode = {
+    <s:@L> "return" <val: ValExpr> <e:@L> => {
+        AstNode::ReturnStmt(Box::new(val), AstType::Unknown)
+    }
 }
 
 IfStmt: AstNode = {
@@ -76,7 +83,7 @@ ValObj: AstNode = {
     Float => <>,
     Str => <>,
     FnCall => <>,
-    MathStmt,
+    MathStmt => <>,
 }
 
 // + - * /
