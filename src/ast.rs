@@ -30,6 +30,13 @@ pub fn typeof_ident(v: &String) -> AstType {
     }
 }
 
+pub fn ident_name(ident: &AstNode) -> String {
+    match ident {
+        AstNode::Ident(var, _) => var.clone(),
+        _ => "fuck".to_string(),
+    }
+}
+
 impl fmt::Display for AstType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)

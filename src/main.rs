@@ -2,6 +2,7 @@
 mod ast;
 mod env;
 mod semantic;
+mod codegen;
 
 #[macro_use]
 extern crate lalrpop_util;
@@ -41,6 +42,6 @@ fn main() {
             }
         }
     "#;
-    let nodes = ModuleParser::new().parse(sources).unwrap();
-    semantic_check(nodes);
+    let program = ModuleParser::new().parse(sources).unwrap();
+    semantic_check(program);
 }

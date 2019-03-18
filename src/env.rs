@@ -1,6 +1,8 @@
 
 use std::collections::HashMap;
 use crate::ast::AstType;
+use crate::ast::AstNode;
+use crate::ast::ident_name;
 use std::fmt;
 
 type DefTable = HashMap<String, AstType>;
@@ -62,7 +64,7 @@ impl Env {
         self.local.pop();
     }
 
-    pub fn resolve(&self, var: &String) -> Option<AstType> {
+    pub fn lookup(&self, var: &String) -> Option<AstType> {
         let mut stk = self.local.clone(); stk.reverse();
         for s in stk.iter() {
             if s.contains_key(var) {
@@ -72,19 +74,23 @@ impl Env {
         self.global.get(var).cloned()
     }
 
-    pub fn update(&mut self, var: &String, typ: AstType) {
+    pub fn update(&mut self, var: &mut AstNode, typ: AstType) {
         let len = self.local.len();
+        let name = ident_name(var);
+        if let AstNode::Ident(_, ref mut vtyp) = var {
+            *vtyp = typ.clone();
+        }
         for idx in 0..len {
-            if self.local[len-idx-1].contains_key(var) {
-                self.local[len-idx-1].entry(var.clone()).and_modify(|e| { *e = typ.clone() });
+            if self.local[len-idx-1].contains_key(&name) {
+                self.local[len-idx-1].entry(name).and_modify(|e| { *e = typ });
                 return ;
             }
         }
-        self.global.entry(var.clone()).and_modify(|e| { *e = typ.clone() });
+        self.global.entry(name).and_modify(|e| { *e = typ });
     }
 
-    pub fn can_resolve(&self, var: &String) -> bool {
-        match self.resolve(var) {
+    pub fn can_lookup(&self, var: &String) -> bool {
+        match self.lookup(var) {
             Some(_) => true,
             _ => false,
         }
