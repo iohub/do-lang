@@ -37,6 +37,12 @@ pub fn ident_name(ident: &AstNode) -> String {
     }
 }
 
+pub fn update_ident_type(ident: &mut AstNode, typ: AstType) {
+    if let AstNode::Ident(_, ref mut _typ) = ident {
+        *_typ = typ;
+    }
+}
+
 impl fmt::Display for AstType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
