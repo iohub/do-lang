@@ -11,7 +11,7 @@ pub fn semantic_check(stmt: Vec<AstNode>) {
             AstNode::VarDecl(_, _, _) => check_vardecl(&mut ev, e, true),
             _ => (),
         }
-        println!("[after]:\n{}", e);
+        // println!("[after]:\n{}", e);
     }
 }
 
@@ -29,7 +29,7 @@ fn check_fndecl(ev: &mut Env, n: &mut AstNode) {
             define_local_var(ev, &param);
         }
         check_stmtblock(ev, block);
-        println!("[leave_scope]:\n{}", ev);
+        // println!("[leave_scope]:\n{}", ev);
         ev.leave_scope();
     }
 }
@@ -196,8 +196,8 @@ fn join_param(ev: &mut Env, p: &mut Vec<AstNode>) -> String {
     return typs.join("-");
 }
 
-#[test]
-fn module_test() {
+
+fn semantic_test() {
     use crate::ast::*;
     use crate::semantic::*;
     use crate::grammar::ModuleParser;
@@ -210,16 +210,13 @@ fn module_test() {
             }
             a
         }
-
         fn foo2(a: int) -> bool {
             a == 100
         }
-
         fn fact(n: int) -> int {
             if n == 1 { return 1; }
             else { return fact(n - 1) * n; }
         }
-
         let a = 1000 + 10;
         fn main() {
             let b;
@@ -234,4 +231,3 @@ fn module_test() {
     let stmts = ModuleParser::new().parse(sources).unwrap();
     semantic_check(stmts);
 }
-

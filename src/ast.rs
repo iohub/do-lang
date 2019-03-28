@@ -37,6 +37,13 @@ pub fn ident_name(ident: &AstNode) -> String {
     }
 }
 
+pub fn ident_type(ident: &AstNode) -> AstType {
+    match ident {
+        AstNode::Ident(_, typ) => typ.clone(),
+        _ => panic!("cann't reach here"),
+    }
+}
+
 pub fn update_ident_type(ident: &mut AstNode, typ: AstType) {
     if let AstNode::Ident(_, ref mut _typ) = ident {
         *_typ = typ;
@@ -135,8 +142,3 @@ impl fmt::Display for Operator {
 }
 
 
-#[test]
-fn ast_show_test() {
-    let val = AstNode::Int(12);
-    println!("node:{}", val);
-}
