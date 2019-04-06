@@ -54,22 +54,32 @@ impl Generator {
         if let AstNode::FnDecl(ident, param, block) = n {
             let function_name = ident_name(&ident);
             let function_type = unsafe {
-                let return_type = self.typeof_valobj(ident_type(&ident.clone()));
+                let return_type = self.typeof_llvm(ident_type(&ident.clone()));
                 let mut param_types = self.gen_param_type(&param);
                 LLVMFunctionType(return_type, param_types.as_mut_ptr(), param_types.len() as u32, 0)
             };
             let function = LLVMAddFunction(self.module, function_name.into_bytes().as_ptr() as *const _, function_type);
-            let entry_name = CString::new("entry").unwrap();
-            let block = LLVMAppendBasicBlockInContext(self.ctx, function, entry_name.as_ptr());
+            let entry = CString::new("entry").unwrap();
+            let block = LLVMAppendBasicBlockInContext(self.ctx, function, entry.as_ptr());
             LLVMPositionBuilderAtEnd(self.builder, block);
+            self.alloc_param(function, &param);
+        }
+    }
 
+    unsafe fn alloc_param(&mut self, Fn: LLVMValueRef, p: &Vec<AstNode>) {
+        for (idx, var) in p.iter().enumerate() {
+            let cname = CString::new(ident_name(&var).to_string()).unwrap();
+            let ty = self.typeof_llvm(ident_type(&var));
+            let _var = LLVMBuildAlloca(self.builder, ty, cname.as_ptr());
+            let val = LLVMGetParam(Fn, idx as u32);
+            LLVMBuildStore(self.builder, _var, val);
         }
     }
 
     unsafe fn gen_param_type(&mut self, n: &Vec<AstNode>) -> Vec<LLVMTypeRef> {
         let mut types = Vec::new();
         for ident in n {
-            types.push(self.typeof_valobj(ident_type(ident)));
+            types.push(self.typeof_llvm(ident_type(ident)));
         }
         return types;
     }
@@ -77,7 +87,7 @@ impl Generator {
     unsafe fn gen_block(&mut self, block: LLVMBasicBlockRef, n: AstNode) {
     }
 
-    unsafe fn typeof_valobj(&mut self, t: AstType) -> LLVMTypeRef {
+    unsafe fn typeof_llvm(&mut self, t: AstType) -> LLVMTypeRef {
         match t {
             AstType::Int => LLVMInt64TypeInContext(self.ctx),
             AstType::Float => LLVMFloatTypeInContext(self.ctx),
@@ -125,11 +135,11 @@ fn codegen_test() {
     "#;
     println!("{}", sources);
     let stmts = ModuleParser::new().parse(sources).unwrap();
-    semantic_check(stmts.clone());
+    let typed_ast = semantic_check(stmts);
     unsafe {
 
     let mut generator = Generator::new();
-    generator.gen(&"demo".to_string(), &stmts);
+    generator.gen(&"demo".to_string(), &typed_ast);
 
     }
 }

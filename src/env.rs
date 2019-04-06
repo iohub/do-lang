@@ -51,7 +51,7 @@ impl Env {
         }
     }
 
-    pub fn _local_has(&mut self, var: &String) -> bool {
+    pub fn _local_defined(&mut self, var: &String) -> bool {
         let mut ok = false;
         if let Some(top) = self.locals.pop() {
             ok = top.contains_key(var);

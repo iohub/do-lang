@@ -1,7 +1,7 @@
 use crate::ast::*;
 use crate::env::*;
 
-pub fn semantic_check(stmt: Vec<AstNode>) {
+pub fn semantic_check(stmt: Vec<AstNode>) -> Vec<AstNode> {
     let mut ev = Env::new();
     let mut _stmt = stmt.clone();
     for (_, e) in _stmt.iter_mut().enumerate() {
@@ -13,6 +13,7 @@ pub fn semantic_check(stmt: Vec<AstNode>) {
         }
         println!("[after]:\n{}", e);
     }
+    stmt
 }
 
 fn prototype_fn(ev: &mut Env, ident: String, p: &mut Vec<AstNode>) -> String {
@@ -196,37 +197,3 @@ fn join_param(ev: &mut Env, p: &mut Vec<AstNode>) -> String {
 }
 
 
-fn semantic_test() {
-    use crate::ast::*;
-    use crate::semantic::*;
-    use crate::grammar::ModuleParser;
-    let sources = r#"
-        fn foo1(a: int, b: int) -> int {
-            let c = a + 1001;
-            let d;
-            if a > 100 {
-                d = b + 1000 + c + a;
-            }
-            a
-        }
-        fn foo2(a: int) -> bool {
-            a == 100
-        }
-        fn fact(n: int) -> int {
-            if n == 1 { return 1; }
-            else { return fact(n - 1) * n; }
-        }
-        let a = 1000 + 10;
-        fn main() {
-            let b;
-            a = foo1(a, 1001) + 123 + foo1(a, 100+101);
-            b = foo1(123, a);
-            while a > b + 100 {
-                b = a + foo1(a, b);
-            }
-        }
-    "#;
-    println!("{}", sources);
-    let stmts = ModuleParser::new().parse(sources).unwrap();
-    semantic_check(stmts);
-}
