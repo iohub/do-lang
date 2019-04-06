@@ -97,7 +97,7 @@ fn codegen_test() {
     let sources = r#"
         fn foo1(a: int, b: int) -> int {
             let c = a + 1001;
-            let d;
+            let d: int;
             if a > 100 {
                 d = b + 1000 + c + a;
             }
@@ -115,7 +115,7 @@ fn codegen_test() {
 
         let a = 1000 + 10;
         fn main() {
-            let b;
+            let b: int;
             a = foo1(a, 1001) + 123 + foo1(a, 100+101);
             b = foo1(123, a);
             while a > b + 100 {

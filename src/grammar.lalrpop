@@ -37,7 +37,7 @@ ValExpr: AstNode = {
 
 ReturnExpr: AstNode = {
     <s:@L> "return" <val: ValExpr> <e:@L> => {
-        AstNode::ReturnStmt(Box::new(val), AstType::Unknown)
+        AstNode::ReturnStmt(Box::new(val), AstType::Undef)
     }
 }
 
@@ -51,11 +51,12 @@ IfStmt: AstNode = {
 }
 
 LetStmt: AstNode = {
-    <s:@L> "let" <var: Ident> ";" <e:@L> => {
-        AstNode::VarDecl(Box::new(var), Box::new(AstNode::Nil), AstType::Unknown)
+    <s:@L> "let" <var: Ident> ":" <vty: RawIdent> ";" <e:@L> => {
+        let typ = typeof_ident(&vty);
+        AstNode::VarDecl(Box::new(var), Box::new(AstNode::Nil), typ)
     },
     <s:@L> "let" <var: Ident> "=" <val: ValObj> ";" <e:@L> => {
-        AstNode::VarDecl(Box::new(var), Box::new(val), AstType::Unknown)
+        AstNode::VarDecl(Box::new(var), Box::new(val), AstType::Undef)
     }
 }
 
@@ -73,7 +74,7 @@ AssignStmt: AstNode = {
 
 BinaryLogicExpr: AstNode = {
     <s:@L> <obj1:ValObj> <op:BinLogicOp> <obj2:ValObj> <e:@L> => {
-        AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2), AstType::Unknown)
+        AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2), AstType::Undef)
     }
 }
 
@@ -96,10 +97,10 @@ NumOpObj: AstNode = {
 
 MathStmt: AstNode = {
     <s:@L> <obj1: NumOpObj> <op: MathOp> <obj2: NumOpObj> <e:@L> => {
-        AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2), AstType::Unknown)
+        AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2), AstType::Undef)
     },
     <s:@L> <obj1: MathStmt> <op: MathOp> <obj2: NumOpObj> <e:@L> => {
-        AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2), AstType::Unknown)
+        AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2), AstType::Undef)
     }
 }
 

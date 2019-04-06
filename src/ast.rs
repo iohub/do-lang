@@ -16,7 +16,8 @@ pub enum AstType {
     Bool,
     // TODO: extend type: struct, enum, interface ...
     Ext(String),
-    Unknown,
+    Nil,
+    Undef,
 }
 
 pub fn typeof_ident(v: &String) -> AstType {
