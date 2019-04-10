@@ -7,25 +7,41 @@ use self::llvm::prelude::*;
 use std::ptr;
 use std::ffi::CString;
 use crate::ast::*;
+use std::collections::HashMap;
 
-struct Generator {
+type SymbolTable = HashMap<String, LLVMValueRef>;
+
+struct LLVMGenerator {
     pub ctx: LLVMContextRef,
     pub module: LLVMModuleRef,
     pub builder: LLVMBuilderRef,
 
+    pub functions: SymbolTable,
+    pub global: SymbolTable,
+    pub locals: Vec<SymbolTable>,
 }
 
-impl Generator {
+/// Convert a string literal into a C string.
+macro_rules! c_str {
+    ($s:expr) => {
+        concat!($s, "\0").as_ptr() as *const i8
+    };
+}
+
+impl LLVMGenerator {
     pub unsafe fn new() -> Self {
         let _ctx = LLVMContextCreate();
-        Generator {
+        LLVMGenerator {
             ctx: _ctx,
             module: LLVMModuleCreateWithName(b"__module\0".as_ptr() as *const _),
             builder: LLVMCreateBuilderInContext(_ctx),
+            functions: HashMap::new(),
+            global: HashMap::new(),
+            locals: Vec::new(),
         }
     }
 
-    pub unsafe fn gen(&mut self, name: &String, module: &Vec<AstNode>) {
+    pub unsafe fn run(&mut self, name: &String, module: &Vec<AstNode>) {
         for item in module {
             match item {
                 AstNode::FnDecl(_, _, _) => self.gen_fndecl(item.clone()),
@@ -45,9 +61,23 @@ impl Generator {
         LLVMContextDispose(self.ctx);
     }
 
-    fn gen_vardecl(&mut self, n: AstNode) {
-        if let AstNode::VarDecl(ident, val, typ) = n {
+    fn enter_scope(&mut self) {
+        self.locals.push(HashMap::new());
+    }
+
+    fn leave_scope(&mut self) {
+        self.locals.pop();
+    }
+
+    fn get(&self, var: &String) -> Option<LLVMValueRef> {
+        println!("{:?}\n{}", self.locals, var);
+        let mut stk = self.locals.clone(); stk.reverse();
+        for s in stk.iter() {
+            if s.contains_key(var) {
+                return s.get(var).cloned();
+            }
         }
+        self.global.get(var).cloned()
     }
 
     unsafe fn gen_fndecl(&mut self, n: AstNode) {
@@ -60,31 +90,100 @@ impl Generator {
             };
             let function = LLVMAddFunction(self.module, function_name.into_bytes().as_ptr() as *const _, function_type);
             let entry = CString::new("entry").unwrap();
-            let block = LLVMAppendBasicBlockInContext(self.ctx, function, entry.as_ptr());
-            LLVMPositionBuilderAtEnd(self.builder, block);
+            self.functions.insert(ident_name(&ident), function);
+            self.enter_scope();
+            let bb = LLVMAppendBasicBlockInContext(self.ctx, function, entry.as_ptr());
+            LLVMPositionBuilderAtEnd(self.builder, bb);
             self.alloc_param(function, &param);
+            self.gen_block(bb, &block);
+            self.leave_scope();
         }
     }
 
     unsafe fn alloc_param(&mut self, Fn: LLVMValueRef, p: &Vec<AstNode>) {
         for (idx, var) in p.iter().enumerate() {
-            let cname = CString::new(ident_name(&var).to_string()).unwrap();
+            let cname = CString::new(ident_name(&var)).unwrap();
             let ty = self.typeof_llvm(ident_type(&var));
             let _var = LLVMBuildAlloca(self.builder, ty, cname.as_ptr());
+            self.push_var(ident_name(&var), _var);
             let val = LLVMGetParam(Fn, idx as u32);
             LLVMBuildStore(self.builder, _var, val);
         }
     }
 
-    unsafe fn gen_param_type(&mut self, n: &Vec<AstNode>) -> Vec<LLVMTypeRef> {
-        let mut types = Vec::new();
-        for ident in n {
-            types.push(self.typeof_llvm(ident_type(ident)));
-        }
-        return types;
+    fn push_var(&mut self, var: String, val: LLVMValueRef) {
+        let idx = self.locals.len();
+        self.locals[idx-1].insert(var, val);
     }
 
-    unsafe fn gen_block(&mut self, block: LLVMBasicBlockRef, n: AstNode) {
+    unsafe fn gen_vardecl(&mut self, var: &AstNode) {
+        if let AstNode::VarDecl(ident, val, _) = var {
+            let cname = CString::new(ident_name(&ident)).unwrap();
+            let ty = self.typeof_llvm(ident_type(&ident));
+            let _var = LLVMBuildAlloca(self.builder, ty, cname.as_ptr());
+            self.push_var(ident_name(&ident), _var);
+            if !nil_node(val) {
+                let val = self.gen_initializer(val).unwrap();
+                LLVMBuildStore(self.builder, _var, val);
+            }
+        }
+    }
+
+    unsafe fn gen_initializer(&mut self, expr: &AstNode) -> Option<LLVMValueRef> {
+        match expr {
+            AstNode::BinaryOp(_, _, _, _) => self.gen_numberical(expr),
+            _ => Some(LLVMConstInt(self.i64_type(), 168 as u64, 1)),
+        }
+    }
+
+    unsafe fn gen_value(&mut self, val: &AstNode) -> LLVMValueRef {
+        match val {
+            AstNode::Int(v) => LLVMConstInt(self.i64_type(), *v as u64, 1),
+            AstNode::Float(v) => LLVMConstReal(self.f64_type(), *v as f64),
+            AstNode::FnCall(ident, args) => {
+                let name = ident_name(&ident);
+                let fnptr = self.functions[&name];
+                let mut _args = vec!();
+                for item in args { _args.push(self.gen_value(item)); }
+                LLVMBuildCall(self.builder, fnptr, _args.as_mut_ptr(), _args.len() as u32, c_str!(""))
+            },
+            // TODO: supports String
+            _ => unreachable!(),
+        }
+    }
+
+    unsafe fn gen_numberical(&mut self, expr: &AstNode) -> Option<LLVMValueRef> {
+        if let AstNode::BinaryOp(var, op, val, _) = expr {
+            let retval = match *var.clone() {
+                AstNode::BinaryOp(_, _, _, _) => self.gen_numberical(&var.clone()),
+                AstNode::Ident(name, ty) => {
+                    let val = self.gen_value(val);
+                    let _var = self.get(&name).unwrap();
+                    match op {
+                        Operator::OpPlus => { Some(LLVMBuildAdd(self.builder, _var, val, c_str!(""))) }
+                        _ => None,
+                    }
+                },
+                _ => None,
+            };
+            return retval;
+        }
+        unreachable!();
+    }
+
+    unsafe fn gen_param_type(&mut self, n: &Vec<AstNode>) -> Vec<LLVMTypeRef> {
+        let mut ty = Vec::new();
+        for ident in n { ty.push(self.typeof_llvm(ident_type(ident))); }
+        return ty;
+    }
+
+    unsafe fn gen_block(&mut self, block: LLVMBasicBlockRef, stmts: &Vec<AstNode>) {
+        for stmt in stmts {
+            match stmt {
+                AstNode::VarDecl(_, _, _) => self.gen_vardecl(stmt),
+                _ => (),
+            }
+        }
     }
 
     unsafe fn typeof_llvm(&mut self, t: AstType) -> LLVMTypeRef {
@@ -96,6 +195,19 @@ impl Generator {
             _ => LLVMInt8TypeInContext(self.ctx),
         }
     }
+
+    unsafe fn i64_type(&self) -> LLVMTypeRef {
+        LLVMInt64TypeInContext(self.ctx)
+    }
+
+    unsafe fn f64_type(&self) -> LLVMTypeRef {
+        LLVMFloatTypeInContext(self.ctx)
+    }
+
+    unsafe fn bool_type(&self) -> LLVMTypeRef {
+        LLVMInt8TypeInContext(self.ctx)
+    }
+
 }
 
 #[test]
@@ -138,8 +250,8 @@ fn codegen_test() {
     let typed_ast = semantic_check(stmts);
     unsafe {
 
-    let mut generator = Generator::new();
-    generator.gen(&"demo".to_string(), &typed_ast);
+    let mut generator = LLVMGenerator::new();
+    generator.run(&"demo".to_string(), &typed_ast);
 
     }
 }

@@ -11,9 +11,9 @@ pub fn semantic_check(stmt: Vec<AstNode>) -> Vec<AstNode> {
             AstNode::VarDecl(_, _, _) => check_vardecl(&mut ev, e, true),
             _ => (),
         }
-        println!("[after]:\n{}", e);
+        println!("\n{}\n", e);
     }
-    stmt
+    _stmt
 }
 
 fn prototype_fn(ev: &mut Env, ident: String, p: &mut Vec<AstNode>) -> String {
@@ -23,7 +23,7 @@ fn prototype_fn(ev: &mut Env, ident: String, p: &mut Vec<AstNode>) -> String {
 fn check_fndecl(ev: &mut Env, n: &mut AstNode) {
     if let AstNode::FnDecl(ident, ref mut param, block) = n {
         let proto = prototype_fn(ev, ident_name(&ident), param);
-        if ev.global_defined(&proto) { panic!("redefine function:{}", proto) }
+        if ev.global_defined(&proto) { unreachable!("redefine function:{}", proto) }
         if let AstNode::Ident(_, typ) = *ident.clone() {
             ev.global_def(&proto, typ);
             ev.enter_scope();
@@ -74,7 +74,7 @@ fn check_assignstmt(ev: &mut Env, n: &mut AstNode) {
                 ev.update(var, rtyp);
             },
             _ => {
-                if ltyp != rtyp { panic!("unmatch {} {}", ltyp, rtyp); }
+                if ltyp != rtyp { unreachable!("unmatch {} {}", ltyp, rtyp); }
             }
         }
     }
@@ -96,7 +96,7 @@ fn check_vardecl(ev: &mut Env, n: &mut AstNode, global: bool) {
 fn typeof_value_expr(ev: &mut Env, n: &mut AstNode) -> AstType {
     match n {
         AstNode::BinaryOp(_, op, _, _) => {
-            if !is_math_op(*op) { panic!("unmatch math Operator{}", op); }
+            if !is_math_op(*op) { unreachable!("unmatch math Operator{}", op); }
             typeof_binary_op(ev, n)
         },
         _ => typeof_valobj(ev, n),
@@ -106,7 +106,7 @@ fn typeof_value_expr(ev: &mut Env, n: &mut AstNode) -> AstType {
 fn typeof_bool_expr(ev: &mut Env, n: &mut AstNode) -> AstType {
     match n {
         AstNode::BinaryOp(_, op, _, _) => {
-            if !is_logic_op(*op) { panic!("unmatch logic Operator{}", op); }
+            if !is_logic_op(*op) { unreachable!("unmatch logic Operator{}", op); }
             typeof_binary_op(ev, n)
         },
         _ => typeof_valobj(ev, n),
@@ -129,12 +129,12 @@ fn typeof_valobj(ev: &mut Env, n: &mut AstNode) -> AstType {
             let proto = prototype_fn(ev, ident_name(&ident), param);
             match ev.global_resolve(&proto) {
                 Some(typ) => typ.clone(),
-                None => panic!("cann't resolve fn proto:{}", proto),
+                None => unreachable!("cann't resolve fn proto:{}", proto),
             }
         },
         AstNode::BinaryOp(_, _, _, _) => typeof_value_expr(ev, n),
         AstNode::Nil => AstType::Nil,
-        _ => panic!("unexpected astnode:{}", n),
+        _ => unreachable!(),
     }
 }
 
@@ -146,12 +146,12 @@ fn typeof_binary_op(ev: &mut Env, n: &mut AstNode) -> AstType {
             _ => typeof_valobj(ev, lhs),
         };
         if rtyp != ltyp {
-            panic!("unexpected {} == {}", ltyp, rtyp);
+            unreachable!("unexpected {} == {}", ltyp, rtyp);
         }
         *typ = rtyp.clone();
         return rtyp;
     }
-    panic!("cann't reach here");
+    unreachable!();
 }
 
 fn is_math_op(op: Operator) -> bool {
