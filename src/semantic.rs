@@ -10,7 +10,7 @@ pub fn semantic_check(stmt: Vec<AstNode>) -> Vec<AstNode> {
             AstNode::VarDecl(_, _, _) => check_vardecl(&mut ev, e, true),
             _ => (),
         }
-        println!("\n{}\n", e);
+        // println!("\n{}\n", e);
     }
     _stmt
 }

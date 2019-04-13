@@ -49,6 +49,7 @@ impl LLVMGenerator {
         for item in module {
             match item {
                 AstNode::FnDecl(_, _, _) => self.gen_fndecl(item.clone()),
+                // AstNode::VarDecl(_, _, _) => self.gen_vardecl(&item, true),
                 _ => (),
             }
         }
@@ -98,7 +99,7 @@ impl LLVMGenerator {
             let bb = LLVMAppendBasicBlockInContext(self.ctx, function, entry.as_ptr());
             LLVMPositionBuilderAtEnd(self.builder, bb);
             self.alloc_param(function, &param);
-            self.gen_block(bb, &block);
+            self.gen_block(&block);
             self.leave_scope();
         }
     }
@@ -119,12 +120,18 @@ impl LLVMGenerator {
         self.locals[idx-1].insert(var, val);
     }
 
-    unsafe fn gen_vardecl(&mut self, var: &AstNode) {
+    fn push_global_var(&mut self, var: String, val: LLVMValueRef) {
+        self.global.insert(var, val);
+    }
+
+    unsafe fn gen_vardecl(&mut self, var: &AstNode, global: bool) {
         if let AstNode::VarDecl(ident, val, _) = var {
             let cname = CString::new(ident_name(&ident)).unwrap();
             let ty = self.typeof_llvm(ident_type(&ident));
             let _var = LLVMBuildAlloca(self.builder, ty, cname.as_ptr());
-            self.push_var(ident_name(&ident), _var);
+            if global { self.push_global_var(ident_name(&ident), _var); }
+            else { self.push_var(ident_name(&ident), _var); }
+
             if !nil_node(val) {
                 let val = self.gen_initializer(val).unwrap();
                 LLVMBuildStore(self.builder, _var, val);
@@ -135,9 +142,7 @@ impl LLVMGenerator {
     unsafe fn gen_initializer(&mut self, expr: &AstNode) -> Option<LLVMValueRef> {
         match expr {
             AstNode::BinaryOp(_, _, _, _) => self.gen_numberical(expr),
-            AstNode::Int(v) => Some(LLVMConstInt(self.i64_type(), *v as u64, 1)),
-            AstNode::Float(v) => Some(LLVMConstReal(self.f64_type(), *v as f64)),
-            _ => unreachable!(),
+            _ => Some(self.gen_value(expr)),
         }
     }
 
@@ -156,18 +161,17 @@ impl LLVMGenerator {
         if let AstNode::FnCall(ident, args) = Fn {
                 let name = ident_name(&ident);
                 let fnptr = self.functions[&name];
-                let mut _args = vec!();
-                for item in args { _args.push(self.gen_value(item)); }
+                let mut _args: Vec<LLVMValueRef> = args.into_iter().map(|n| self.gen_value(n)).collect();
                 return LLVMBuildCall(self.builder, fnptr, _args.as_mut_ptr(), _args.len() as u32, c_str!(""))
         }
         unreachable!();
     }
 
-    unsafe fn gen_expr_value(&mut self, expr: &AstNode) -> LLVMValueRef {
+    unsafe fn gen_conditional(&mut self, expr: &AstNode) -> LLVMValueRef {
         match expr {
             AstNode::BinaryOp(lhs, op, rhs, ty) => {
                 match *lhs.clone() {
-                    AstNode::BinaryOp(_, _, _, _) => self.gen_expr_value(lhs),
+                    AstNode::BinaryOp(_, _, _, _) => self.gen_conditional(lhs),
                     _ => self.gen_expr_cmp(expr),
                 }
             },
@@ -214,14 +218,14 @@ impl LLVMGenerator {
                     let _var = self.get(&name).unwrap();
                     match op {
                         Operator::OpPlus => { Some(LLVMBuildAdd(self.builder, _var, val, c_str!(""))) }
-                        _ => None,
+                        _ => unreachable!(),
                     }
                 },
-                _ => None,
+                _ => Some(self.gen_value(var)),
             };
             return retval;
         }
-        unreachable!();
+        unreachable!("{:?}", expr);
     }
 
     unsafe fn gen_param_type(&mut self, n: &Vec<AstNode>) -> Vec<LLVMTypeRef> {
@@ -230,19 +234,39 @@ impl LLVMGenerator {
         return ty;
     }
 
-    unsafe fn gen_block(&mut self, block: LLVMBasicBlockRef, stmts: &Vec<AstNode>) {
+    unsafe fn gen_block(&mut self, stmts: &Vec<AstNode>) {
         for stmt in stmts {
             match stmt {
-                AstNode::VarDecl(_, _, _) => self.gen_vardecl(stmt),
+                AstNode::VarDecl(_, _, _) => self.gen_vardecl(stmt, false),
                 AstNode::IfStmt(_, _, _) => self.gen_ifstmt(stmt),
+                AstNode::Assignment(_, _) => self.gen_assign(stmt),
                 _ => (),
             }
         }
     }
 
+    unsafe fn gen_assign(&mut self, stmt: &AstNode) {
+        if let AstNode::Assignment(var, val) = stmt {
+            let _var = self.get(&ident_name(var)).unwrap();
+            let _val = self.gen_initializer(val).unwrap();
+            LLVMBuildStore(self.builder, _var, _val);
+            return ;
+        }
+        unreachable!();
+    }
+
     unsafe fn gen_ifstmt(&mut self, stmt: &AstNode) {
         if let AstNode::IfStmt(cond, Tstmt, Fstmt) = stmt {
-            self.gen_expr_value(cond);
+            let condval = self.gen_conditional(cond);
+            let current = LLVMGetInsertBlock(self.builder);
+            let parent = LLVMGetBasicBlockParent(current);
+            let Tblock = LLVMAppendBasicBlock(parent, c_str!("if-then"));
+            let Fblock = LLVMAppendBasicBlock(parent, c_str!("if-else"));
+            LLVMBuildCondBr(self.builder, condval, Tblock, Fblock);
+            LLVMPositionBuilderAtEnd(self.builder, Tblock);
+            self.gen_block(Tstmt);
+            LLVMPositionBuilderAtEnd(self.builder, Fblock);
+            self.gen_block(Fstmt);
         }
     }
 
@@ -282,7 +306,14 @@ fn codegen_test() {
             let d: int;
             let ok = 123.456;
             if ok > 100.123 {
+                let val = 123.24;
                 d = b + 1000 + c + a;
+                val = val + 0.87;
+            }
+
+            if c > 100 {
+                let bv = 1002;
+                c = bv + c;
             }
             a
         }
@@ -296,8 +327,8 @@ fn codegen_test() {
             else { return fact(n - 1) * n; }
         }
 
-        let a = 1000 + 10;
         fn main() {
+            let a = 1000 + 10;
             let b: int;
             a = foo1(a, 1001) + 123 + foo1(a, 100+101);
             b = foo1(123, a);
