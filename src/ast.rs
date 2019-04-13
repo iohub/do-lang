@@ -43,7 +43,7 @@ pub enum AstNode {
     ReturnStmt(Box<AstNode>, AstType),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Operator {
     OpOr,
     OpAssign,

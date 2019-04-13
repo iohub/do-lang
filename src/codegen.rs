@@ -4,10 +4,14 @@ extern crate llvm_sys as llvm;
 use self::llvm::core::*;
 use self::llvm::prelude::*;
 
+use llvm::LLVMIntPredicate::*;
+use llvm::LLVMRealPredicate::*;
 use std::ptr;
 use std::ffi::CString;
 use crate::ast::*;
 use std::collections::HashMap;
+
+
 
 type SymbolTable = HashMap<String, LLVMValueRef>;
 
@@ -70,7 +74,6 @@ impl LLVMGenerator {
     }
 
     fn get(&self, var: &String) -> Option<LLVMValueRef> {
-        println!("{:?}\n{}", self.locals, var);
         let mut stk = self.locals.clone(); stk.reverse();
         for s in stk.iter() {
             if s.contains_key(var) {
@@ -132,7 +135,9 @@ impl LLVMGenerator {
     unsafe fn gen_initializer(&mut self, expr: &AstNode) -> Option<LLVMValueRef> {
         match expr {
             AstNode::BinaryOp(_, _, _, _) => self.gen_numberical(expr),
-            _ => Some(LLVMConstInt(self.i64_type(), 168 as u64, 1)),
+            AstNode::Int(v) => Some(LLVMConstInt(self.i64_type(), *v as u64, 1)),
+            AstNode::Float(v) => Some(LLVMConstReal(self.f64_type(), *v as f64)),
+            _ => unreachable!(),
         }
     }
 
@@ -140,16 +145,64 @@ impl LLVMGenerator {
         match val {
             AstNode::Int(v) => LLVMConstInt(self.i64_type(), *v as u64, 1),
             AstNode::Float(v) => LLVMConstReal(self.f64_type(), *v as f64),
-            AstNode::FnCall(ident, args) => {
+            AstNode::FnCall(ident, args) => self.gen_call(val),
+            AstNode::Ident(name, _) => self.get(name).unwrap(),
+            // TODO: supports String
+            _ => unreachable!(),
+        }
+    }
+
+    unsafe fn gen_call(&mut self, Fn: &AstNode) -> LLVMValueRef {
+        if let AstNode::FnCall(ident, args) = Fn {
                 let name = ident_name(&ident);
                 let fnptr = self.functions[&name];
                 let mut _args = vec!();
                 for item in args { _args.push(self.gen_value(item)); }
-                LLVMBuildCall(self.builder, fnptr, _args.as_mut_ptr(), _args.len() as u32, c_str!(""))
+                return LLVMBuildCall(self.builder, fnptr, _args.as_mut_ptr(), _args.len() as u32, c_str!(""))
+        }
+        unreachable!();
+    }
+
+    unsafe fn gen_expr_value(&mut self, expr: &AstNode) -> LLVMValueRef {
+        match expr {
+            AstNode::BinaryOp(lhs, op, rhs, ty) => {
+                match *lhs.clone() {
+                    AstNode::BinaryOp(_, _, _, _) => self.gen_expr_value(lhs),
+                    _ => self.gen_expr_cmp(expr),
+                }
             },
-            // TODO: supports String
+            _ => self.gen_value(expr),
+        }
+    }
+
+    fn llvm_int_op(&mut self, op: &Operator) -> llvm::LLVMIntPredicate {
+        match op {
+            Operator::OpEq => LLVMIntEQ,
+            Operator::OpGt => LLVMIntSGT,
             _ => unreachable!(),
         }
+    }
+
+    fn llvm_float_op(&mut self, op: &Operator) -> llvm::LLVMRealPredicate {
+        match op {
+            Operator::OpEq => LLVMRealOEQ,
+            Operator::OpGt => LLVMRealOGT,
+            _ => unreachable!(),
+        }
+    }
+
+    unsafe fn gen_expr_cmp(&mut self, expr: &AstNode) -> LLVMValueRef {
+        if let AstNode::BinaryOp(lhs, op, rhs, ty) = expr {
+            let lval = self.gen_value(lhs);
+            let rval = self.gen_value(rhs);
+            let val = match ty {
+                AstType::Float => LLVMBuildFCmp(self.builder, self.llvm_float_op(op), lval, rval, c_str!("")),
+                AstType::Int => LLVMBuildICmp(self.builder, self.llvm_int_op(op), lval, rval, c_str!("")),
+                _ => unreachable!(),
+            };
+            return val;
+        }
+        unreachable!();
     }
 
     unsafe fn gen_numberical(&mut self, expr: &AstNode) -> Option<LLVMValueRef> {
@@ -181,8 +234,15 @@ impl LLVMGenerator {
         for stmt in stmts {
             match stmt {
                 AstNode::VarDecl(_, _, _) => self.gen_vardecl(stmt),
+                AstNode::IfStmt(_, _, _) => self.gen_ifstmt(stmt),
                 _ => (),
             }
+        }
+    }
+
+    unsafe fn gen_ifstmt(&mut self, stmt: &AstNode) {
+        if let AstNode::IfStmt(cond, Tstmt, Fstmt) = stmt {
+            self.gen_expr_value(cond);
         }
     }
 
@@ -220,7 +280,8 @@ fn codegen_test() {
         fn foo1(a: int, b: int) -> int {
             let c = a + 1001;
             let d: int;
-            if a > 100 {
+            let ok = 123.456;
+            if ok > 100.123 {
                 d = b + 1000 + c + a;
             }
             a

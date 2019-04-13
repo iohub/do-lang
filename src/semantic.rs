@@ -5,7 +5,6 @@ pub fn semantic_check(stmt: Vec<AstNode>) -> Vec<AstNode> {
     let mut ev = Env::new();
     let mut _stmt = stmt.clone();
     for (_, e) in _stmt.iter_mut().enumerate() {
-        // println!("[before]:\n{}", e);
         match e {
             AstNode::FnDecl(_, _, _) => check_fndecl(&mut ev, e),
             AstNode::VarDecl(_, _, _) => check_vardecl(&mut ev, e, true),
