@@ -213,15 +213,17 @@ impl LLVMGenerator {
         if let AstNode::BinaryOp(var, op, val, _) = expr {
             let retval = match *var.clone() {
                 AstNode::BinaryOp(_, _, _, _) => self.gen_numberical(&var.clone()),
-                AstNode::Ident(name, ty) => {
-                    let val = self.gen_value(val);
-                    let _var = self.get(&name).unwrap();
+                _ => {
+                    let lval = self.gen_value(var);
+                    let rval = self.gen_value(val);
                     match op {
-                        Operator::OpPlus => { Some(LLVMBuildAdd(self.builder, _var, val, c_str!(""))) }
+                        Operator::OpPlus => {
+                            println!("{:?}", expr);
+                            return Some(LLVMBuildAdd(self.builder, lval, rval, c_str!("")));
+                        },
                         _ => unreachable!(),
                     }
                 },
-                _ => Some(self.gen_value(var)),
             };
             return retval;
         }
@@ -246,6 +248,7 @@ impl LLVMGenerator {
     }
 
     unsafe fn gen_assign(&mut self, stmt: &AstNode) {
+        println!("{:?}", stmt);
         if let AstNode::Assignment(var, val) = stmt {
             let _var = self.get(&ident_name(var)).unwrap();
             let _val = self.gen_initializer(val).unwrap();
