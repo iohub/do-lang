@@ -202,24 +202,24 @@ BinLogicOp: Operator = {
 }
 
 CompareOp: Operator = {
-     "==" => Operator::OpEq,
-     "!=" => Operator::OpNe,
-     "<=" => Operator::OpLe,
-     ">=" => Operator::OpGe,
-     "<" => Operator::OpLt,
-     ">" => Operator::OpGt,
+     "==" => Operator::EQ,
+     "!=" => Operator::NE,
+     "<=" => Operator::LE,
+     ">=" => Operator::GE,
+     "<" => Operator::LT,
+     ">" => Operator::GT,
 }
 
 LogicOp: Operator = {
-    "||" => Operator::OpOr,
-    "&&" => Operator::OpAnd,
+    "||" => Operator::OR,
+    "&&" => Operator::AND,
 }
 
 MathOp: Operator = {
-     "+" => Operator::OpPlus,
-     "-" => Operator::OpSub,
-     "*" => Operator::OpMul,
-     "/" => Operator::OpDiv,
+     "+" => Operator::PLUS,
+     "-" => Operator::SUB,
+     "*" => Operator::MUL,
+     "/" => Operator::DIV,
 }
 
 Int: AstNode = {

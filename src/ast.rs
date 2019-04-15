@@ -45,20 +45,20 @@ pub enum AstNode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Operator {
-    OpOr,
-    OpAssign,
-    OpAnd,
-    OpEq,
-    OpNe,
-    OpGe,
-    OpLe,
-    OpGt,
-    OpLt,
-    OpNot,
-    OpPlus,
-    OpSub,
-    OpMul,
-    OpDiv,
+    OR,
+    ASSIGN,
+    AND,
+    EQ,
+    NE,
+    GE,
+    LE,
+    GT,
+    LT,
+    NOT,
+    PLUS,
+    SUB,
+    MUL,
+    DIV,
     OpUnknown,
 }
 
@@ -114,8 +114,8 @@ impl fmt::Display for AstNode {
 
 pub fn is_logic_op(op: Operator) -> bool {
     match op {
-        Operator::OpEq | Operator::OpNe | Operator::OpLe | Operator::OpGe |
-        Operator::OpLt | Operator::OpGt | Operator::OpOr | Operator::OpAnd => true,
+        Operator::EQ | Operator::NE | Operator::LE | Operator::GE |
+        Operator::LT | Operator::GT | Operator::OR | Operator::AND => true,
         _ => false,
     }
 }
@@ -123,20 +123,20 @@ pub fn is_logic_op(op: Operator) -> bool {
 impl fmt::Display for Operator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let s = match *self {
-            Operator::OpOr => "||",
-            Operator::OpAssign => "=",
-            Operator::OpAnd => "&&",
-            Operator::OpEq => "==",
-            Operator::OpNe => "!=",
-            Operator::OpGe => ">=",
-            Operator::OpLe => "<=",
-            Operator::OpGt => ">",
-            Operator::OpLt => "<",
-            Operator::OpNot => "!",
-            Operator::OpPlus => "+",
-            Operator::OpSub => "-",
-            Operator::OpMul => "*",
-            Operator::OpDiv => "/",
+            Operator::OR => "||",
+            Operator::ASSIGN => "=",
+            Operator::AND => "&&",
+            Operator::EQ => "==",
+            Operator::NE => "!=",
+            Operator::GE => ">=",
+            Operator::LE => "<=",
+            Operator::GT => ">",
+            Operator::LT => "<",
+            Operator::NOT => "!",
+            Operator::PLUS => "+",
+            Operator::SUB => "-",
+            Operator::MUL => "*",
+            Operator::DIV => "/",
             _ => "UnKnown",
         };
         s.fmt(f)

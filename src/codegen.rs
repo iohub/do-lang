@@ -189,16 +189,16 @@ impl LLVMGenerator {
 
     fn llvm_int_op(&mut self, op: &Operator) -> llvm::LLVMIntPredicate {
         match op {
-            Operator::OpEq => LLVMIntEQ,
-            Operator::OpGt => LLVMIntSGT,
+            Operator::EQ => LLVMIntEQ,
+            Operator::GT => LLVMIntSGT,
             _ => unreachable!(),
         }
     }
 
     fn llvm_float_op(&mut self, op: &Operator) -> llvm::LLVMRealPredicate {
         match op {
-            Operator::OpEq => LLVMRealOEQ,
-            Operator::OpGt => LLVMRealOGT,
+            Operator::EQ => LLVMRealOEQ,
+            Operator::GT => LLVMRealOGT,
             _ => unreachable!(),
         }
     }
@@ -225,10 +225,10 @@ impl LLVMGenerator {
             };
             let rval = self.gen_value(val);
             match op {
-                Operator::OpPlus => { return LLVMBuildAdd(self.builder, lval, rval, c_str!("")); }
-                Operator::OpSub => { return LLVMBuildSub(self.builder, lval, rval, c_str!("")); }
-                Operator::OpEq => { return self.gen_expr_cmp(expr); }
-                Operator::OpMul => {
+                Operator::PLUS => { return LLVMBuildAdd(self.builder, lval, rval, c_str!("")); }
+                Operator::SUB => { return LLVMBuildSub(self.builder, lval, rval, c_str!("")); }
+                Operator::EQ => { return self.gen_expr_cmp(expr); }
+                Operator::MUL => {
                     match ty {
                         AstType::Float => { return LLVMBuildFMul(self.builder, lval, rval, c_str!("")); }
                         AstType::Int => { return LLVMBuildMul(self.builder, lval, rval, c_str!("")); }
