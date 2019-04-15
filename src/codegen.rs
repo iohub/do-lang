@@ -54,9 +54,9 @@ impl LLVMGenerator {
             }
         }
 
-        let ir = LLVMPrintModuleToString(self.module);
-        let ir_cstring = CString::from_raw(ir);
-        let ir = ir_cstring.to_str().unwrap();
+        // let ir = LLVMPrintModuleToString(self.module);
+        // let ir_cstring = CString::from_raw(ir);
+        // let ir = ir_cstring.to_str().unwrap();
 
         let out_file = CString::new(format!("{}.ll", name)).unwrap();
         LLVMPrintModuleToFile(self.module, out_file.as_ptr(), ptr::null_mut());
@@ -86,7 +86,7 @@ impl LLVMGenerator {
     unsafe fn gen_fndecl(&mut self, n: AstNode) {
         if let AstNode::FnDecl(ident, param, block) = n {
             let function_name = ident_name(&ident);
-            let function_type = unsafe {
+            let function_type = {
                 let return_type = self.typeof_llvm(ident_type(&ident.clone()));
                 let mut param_types = self.gen_param_type(&param);
                 LLVMFunctionType(return_type, param_types.as_mut_ptr(), param_types.len() as u32, 0)
@@ -103,13 +103,13 @@ impl LLVMGenerator {
         }
     }
 
-    unsafe fn alloc_param(&mut self, Fn: LLVMValueRef, p: &Vec<AstNode>) {
+    unsafe fn alloc_param(&mut self, func: LLVMValueRef, p: &Vec<AstNode>) {
         for (idx, var) in p.iter().enumerate() {
             let cname = CString::new(ident_name(&var)).unwrap();
             let ty = self.typeof_llvm(ident_type(&var));
             let _var = LLVMBuildAlloca(self.builder, ty, cname.as_ptr());
             self.push_var(ident_name(&var), _var);
-            let val = LLVMGetParam(Fn, idx as u32);
+            let val = LLVMGetParam(func, idx as u32);
             LLVMBuildStore(self.builder, _var, val);
         }
     }
@@ -158,15 +158,15 @@ impl LLVMGenerator {
         match val {
             AstNode::Int(v) => LLVMConstInt(self.i64_type(), *v as u64, 1),
             AstNode::Float(v) => LLVMConstReal(self.f64_type(), *v as f64),
-            AstNode::FnCall(ident, args) => self.gen_call(val),
+            AstNode::FnCall(_, _) => self.gen_call(val),
             AstNode::Ident(name, _) => self.get(name).unwrap(),
             // TODO: supports String
             _ => unreachable!("{:?}", val),
         }
     }
 
-    unsafe fn gen_call(&mut self, Fn: &AstNode) -> LLVMValueRef {
-        if let AstNode::FnCall(ident, args) = Fn {
+    unsafe fn gen_call(&mut self, func: &AstNode) -> LLVMValueRef {
+        if let AstNode::FnCall(ident, args) = func {
             let name = ident_name(&ident);
             let fnptr = self.functions[&name];
             let mut _args: Vec<LLVMValueRef> = args.into_iter().map(|n| self.gen_initializer(n)).collect();
@@ -177,7 +177,7 @@ impl LLVMGenerator {
 
     unsafe fn gen_conditional(&mut self, expr: &AstNode) -> LLVMValueRef {
         match expr {
-            AstNode::BinaryOp(lhs, op, rhs, ty) => {
+            AstNode::BinaryOp(lhs, _, _, _) => {
                 match *lhs.clone() {
                     AstNode::BinaryOp(_, _, _, _) => self.gen_conditional(lhs),
                     _ => self.gen_expr_cmp(expr),
@@ -269,17 +269,17 @@ impl LLVMGenerator {
     }
 
     unsafe fn gen_ifstmt(&mut self, stmt: &AstNode) {
-        if let AstNode::IfStmt(cond, Tstmt, Fstmt) = stmt {
+        if let AstNode::IfStmt(cond, tstmt, fstmt) = stmt {
             let condval = self.gen_conditional(cond);
             let current = LLVMGetInsertBlock(self.builder);
             let parent = LLVMGetBasicBlockParent(current);
-            let Tblock = LLVMAppendBasicBlock(parent, c_str!("if-then"));
-            let Fblock = LLVMAppendBasicBlock(parent, c_str!("if-else"));
-            LLVMBuildCondBr(self.builder, condval, Tblock, Fblock);
-            LLVMPositionBuilderAtEnd(self.builder, Tblock);
-            self.gen_block(Tstmt);
-            LLVMPositionBuilderAtEnd(self.builder, Fblock);
-            self.gen_block(Fstmt);
+            let tblock = LLVMAppendBasicBlock(parent, c_str!("if-then"));
+            let fblock = LLVMAppendBasicBlock(parent, c_str!("if-else"));
+            LLVMBuildCondBr(self.builder, condval, tblock, fblock);
+            LLVMPositionBuilderAtEnd(self.builder, tblock);
+            self.gen_block(tstmt);
+            LLVMPositionBuilderAtEnd(self.builder, fblock);
+            self.gen_block(fstmt);
         }
     }
 

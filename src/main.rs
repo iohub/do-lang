@@ -8,11 +8,9 @@ mod codegen;
 extern crate lalrpop_util;
 lalrpop_mod!(pub grammar);
 
-#[macro_use]
-extern crate lazy_static;
 
 extern crate clap;
-use clap::{Arg, App, SubCommand};
+use clap::{Arg, App};
 
 use crate::semantic::semantic_check;
 use crate::grammar::ModuleParser;
