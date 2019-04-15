@@ -1,0 +1,37 @@
+
+fn foo1(a: int, b: int) -> int {
+    let c = a + 1001;
+    let d: int;
+    let ok = 123.456;
+    if ok > 100.123 {
+        let val = 123.24;
+        d = b + 1992 + c + a;
+        val = val + 0.87;
+    }
+    if c > 100 {
+        let bv = 1002;
+        c = bv + c;
+    }
+    a = c + d;
+    return a;
+}
+
+fn foo2(a: int) -> bool {
+    return a == 100;
+}
+
+fn fact(n: int) -> int {
+    if n == 1 { return 1; }
+    else { return fact(n - 1) * n; }
+}
+
+
+fn main() {
+    let a = 1001 + 92;
+    let b: int;
+    a = foo1(a, 100) + 123 + foo1(a, 12);
+    b = foo1(123, a + 120);
+    while a > b + 100 {
+        b = a + foo1(a, b);
+    }
+}

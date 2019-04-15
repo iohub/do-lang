@@ -36,7 +36,7 @@ ValExpr: AstNode = {
 }
 
 ReturnExpr: AstNode = {
-    <s:@L> "return" <val: ValExpr> <e:@L> => {
+    <s:@L> "return" <val: ReturnVal> <e:@L> => {
         AstNode::ReturnStmt(Box::new(val), AstType::Undef)
     }
 }
@@ -87,6 +87,15 @@ ValObj: AstNode = {
     MathStmt => <>,
 }
 
+ReturnVal: AstNode = {
+    Ident => <>,
+    Int => <>,
+    Float => <>,
+    Str => <>,
+    FnCall => <>,
+    OpStmt => <>,
+}
+
 // + - * /
 NumOpObj: AstNode = {
     Ident => <>,
@@ -100,6 +109,15 @@ MathStmt: AstNode = {
         AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2), AstType::Undef)
     },
     <s:@L> <obj1: MathStmt> <op: MathOp> <obj2: NumOpObj> <e:@L> => {
+        AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2), AstType::Undef)
+    }
+}
+
+OpStmt: AstNode = {
+    <s:@L> <obj1: NumOpObj> <op: Ops> <obj2: NumOpObj> <e:@L> => {
+        AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2), AstType::Undef)
+    },
+    <s:@L> <obj1: OpStmt> <op: Ops> <obj2: NumOpObj> <e:@L> => {
         AstNode::BinaryOp(Box::new(obj1), op, Box::new(obj2), AstType::Undef)
     }
 }
@@ -171,6 +189,11 @@ Ident: AstNode = {
         let typ = typeof_ident(&v.to_string());
         AstNode::Ident(v.to_string(), typ)
     }
+}
+
+Ops: Operator = {
+    BinLogicOp => <>,
+    MathOp => <>,
 }
 
 BinLogicOp: Operator = {

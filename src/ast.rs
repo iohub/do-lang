@@ -76,7 +76,7 @@ pub fn typeof_ident(v: &String) -> AstType {
 pub fn ident_name(ident: &AstNode) -> String {
     match ident {
         AstNode::Ident(var, _) => var.clone(),
-        _ => "fuck".to_string(),
+        _ => unreachable!("UnKnown ident: {:?}", ident),
     }
 }
 

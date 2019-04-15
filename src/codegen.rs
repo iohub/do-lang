@@ -6,8 +6,8 @@ use self::llvm::prelude::*;
 
 use llvm::LLVMIntPredicate::*;
 use llvm::LLVMRealPredicate::*;
-use std::ptr;
 use std::ffi::CString;
+use std::ptr;
 use crate::ast::*;
 use std::collections::HashMap;
 
@@ -15,7 +15,7 @@ use std::collections::HashMap;
 
 type SymbolTable = HashMap<String, LLVMValueRef>;
 
-struct LLVMGenerator {
+pub struct LLVMGenerator {
     pub ctx: LLVMContextRef,
     pub module: LLVMModuleRef,
     pub builder: LLVMBuilderRef,
@@ -57,10 +57,9 @@ impl LLVMGenerator {
         let ir = LLVMPrintModuleToString(self.module);
         let ir_cstring = CString::from_raw(ir);
         let ir = ir_cstring.to_str().unwrap();
-        println!("{}", ir);
 
-        // let out_file = CString::new("llvm-ir.ll").unwrap();
-        // LLVMPrintModuleToFile(self.module, out_file.as_ptr(), ptr::null_mut());
+        let out_file = CString::new(format!("{}.ll", name)).unwrap();
+        LLVMPrintModuleToFile(self.module, out_file.as_ptr(), ptr::null_mut());
         LLVMDisposeBuilder(self.builder);
         LLVMDisposeModule(self.module);
         LLVMContextDispose(self.ctx);
@@ -132,18 +131,27 @@ impl LLVMGenerator {
             if global { self.push_global_var(ident_name(&ident), _var); }
             else { self.push_var(ident_name(&ident), _var); }
 
-            if !nil_node(val) {
-                let val = self.gen_initializer(val).unwrap();
-                LLVMBuildStore(self.builder, _var, val);
-            }
+            if !nil_node(val) { LLVMBuildStore(self.builder, _var, self.gen_initializer(val)); }
         }
     }
 
-    unsafe fn gen_initializer(&mut self, expr: &AstNode) -> Option<LLVMValueRef> {
+    unsafe fn gen_initializer(&mut self, expr: &AstNode) -> LLVMValueRef {
         match expr {
-            AstNode::BinaryOp(_, _, _, _) => self.gen_numberical(expr),
-            _ => Some(self.gen_value(expr)),
+            AstNode::BinaryOp(_, _, _, _) => self.gen_op(expr),
+            _ => self.gen_value(expr),
         }
+    }
+
+    unsafe fn gen_return(&mut self, expr: &AstNode) {
+        if let AstNode::ReturnStmt(var, _) = expr {
+            let val = match *var.clone() {
+                AstNode::BinaryOp(_, _, _, _) => self.gen_op(var),
+                _ => self.gen_value(var),
+            };
+            LLVMBuildRet(self.builder, val);
+            return ;
+        }
+        unreachable!("[gen_return] {:?}", expr);
     }
 
     unsafe fn gen_value(&mut self, val: &AstNode) -> LLVMValueRef {
@@ -161,7 +169,7 @@ impl LLVMGenerator {
         if let AstNode::FnCall(ident, args) = Fn {
             let name = ident_name(&ident);
             let fnptr = self.functions[&name];
-            let mut _args: Vec<LLVMValueRef> = args.into_iter().map(|n| self.gen_initializer(n).unwrap()).collect();
+            let mut _args: Vec<LLVMValueRef> = args.into_iter().map(|n| self.gen_initializer(n)).collect();
             return LLVMBuildCall(self.builder, fnptr, _args.as_mut_ptr(), _args.len() as u32, c_str!(""))
         }
         unreachable!();
@@ -209,16 +217,25 @@ impl LLVMGenerator {
         unreachable!();
     }
 
-    unsafe fn gen_numberical(&mut self, expr: &AstNode) -> Option<LLVMValueRef> {
-        if let AstNode::BinaryOp(var, op, val, _) = expr {
+    unsafe fn gen_op(&mut self, expr: &AstNode) -> LLVMValueRef {
+        if let AstNode::BinaryOp(var, op, val, ty) = expr {
             let lval = match *var.clone() {
-                AstNode::BinaryOp(_, _, _, _) => self.gen_numberical(&var.clone()).unwrap(),
+                AstNode::BinaryOp(_, _, _, _) => self.gen_op(&var.clone()),
                 _ => self.gen_value(var),
             };
             let rval = self.gen_value(val);
             match op {
-                Operator::OpPlus => { return Some(LLVMBuildAdd(self.builder, lval, rval, c_str!(""))); }
-                _ => unreachable!(),
+                Operator::OpPlus => { return LLVMBuildAdd(self.builder, lval, rval, c_str!("")); }
+                Operator::OpSub => { return LLVMBuildSub(self.builder, lval, rval, c_str!("")); }
+                Operator::OpEq => { return self.gen_expr_cmp(expr); }
+                Operator::OpMul => {
+                    match ty {
+                        AstType::Float => { return LLVMBuildFMul(self.builder, lval, rval, c_str!("")); }
+                        AstType::Int => { return LLVMBuildMul(self.builder, lval, rval, c_str!("")); }
+                        _ => unreachable!("[gen_op] {:?}", ty),
+                    }
+                }
+                _ => unreachable!("[gen_op]: {:?} -> Operator: {:?}", expr, op),
             }
         }
         unreachable!("{:?}", expr);
@@ -236,6 +253,7 @@ impl LLVMGenerator {
                 AstNode::VarDecl(_, _, _) => self.gen_vardecl(stmt, false),
                 AstNode::IfStmt(_, _, _) => self.gen_ifstmt(stmt),
                 AstNode::Assignment(_, _) => self.gen_assign(stmt),
+                AstNode::ReturnStmt(_, _) => { self.gen_return(stmt); }
                 _ => (),
             }
         }
@@ -244,8 +262,7 @@ impl LLVMGenerator {
     unsafe fn gen_assign(&mut self, stmt: &AstNode) {
         if let AstNode::Assignment(var, val) = stmt {
             let _var = self.get(&ident_name(var)).unwrap();
-            let _val = self.gen_initializer(val).unwrap();
-            LLVMBuildStore(self.builder, _var, _val);
+            LLVMBuildStore(self.builder, _var, self.gen_initializer(val));
             return ;
         }
         unreachable!();
@@ -306,16 +323,15 @@ fn codegen_test() {
                 d = b + 1992 + c + a;
                 val = val + 0.87;
             }
-
             if c > 100 {
                 let bv = 1002;
                 c = bv + c;
             }
-            a
+            return a;
         }
 
         fn foo2(a: int) -> bool {
-            a == 100
+            return a == 100;
         }
 
         fn fact(n: int) -> int {
@@ -333,7 +349,6 @@ fn codegen_test() {
             }
         }
     "#;
-    println!("{}", sources);
     let stmts = ModuleParser::new().parse(sources).unwrap();
     let typed_ast = semantic_check(stmts);
     unsafe {

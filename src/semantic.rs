@@ -10,7 +10,6 @@ pub fn semantic_check(stmt: Vec<AstNode>) -> Vec<AstNode> {
             AstNode::VarDecl(_, _, _) => check_vardecl(&mut ev, e, true),
             _ => (),
         }
-        // println!("\n{}\n", e);
     }
     _stmt
 }
@@ -95,7 +94,7 @@ fn check_vardecl(ev: &mut Env, n: &mut AstNode, global: bool) {
 fn typeof_value_expr(ev: &mut Env, n: &mut AstNode) -> AstType {
     match n {
         AstNode::BinaryOp(_, op, _, _) => {
-            if !is_math_op(*op) { unreachable!("unmatch math Operator{}", op); }
+            // if !is_math_op(*op) { unreachable!("unmatch math Operator{}", op); }
             typeof_binary_op(ev, n)
         },
         _ => typeof_valobj(ev, n),
