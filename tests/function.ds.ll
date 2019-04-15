@@ -1,6 +1,6 @@
 ; ModuleID = '__module'
 
-define i64 @"foo1\CC\7F"(i64, i64) {
+define i64 @"foo1-\7F"(i64, i64) {
 entry:
   %a = alloca i64
   store i64 %0, i64* %a
@@ -41,7 +41,7 @@ if-else2:                                         ; preds = %if-else
   ret i64* %a
 }
 
-define i8 @"foo2\ADU"(i64) {
+define i8 @foo2PV(i64) {
 entry:
   %a = alloca i64
   store i64 %0, i64* %a
@@ -49,7 +49,7 @@ entry:
   ret i1 %1
 }
 
-define i64 @"fact\CC\7F"(i64) {
+define i64 @"fact-\7F"(i64) {
 entry:
   %n = alloca i64
   store i64 %0, i64* %n
@@ -61,22 +61,22 @@ if-then:                                          ; preds = %entry
 
 if-else:                                          ; preds = %entry
   %2 = sub i64* %n, i64 1
-  %3 = call i64 @"fact\CC\7F"(i64* %2)
+  %3 = call i64 @"fact-\7F"(i64* %2)
   %4 = mul i64 %3, i64* %n
   ret i64 %4
 }
 
-define i64 @"main\CC\7F"() {
+define i64 @"main-\7F"() {
 entry:
   %a = alloca i64
   store i64 1093, i64* %a
   %b = alloca i64
-  %0 = call i64 @"foo1\CC\7F"(i64* %a, i64 100)
+  %0 = call i64 @"foo1-\7F"(i64* %a, i64 100)
   %1 = add i64 %0, 123
-  %2 = call i64 @"foo1\CC\7F"(i64* %a, i64 12)
+  %2 = call i64 @"foo1-\7F"(i64* %a, i64 12)
   %3 = add i64 %1, %2
   store i64 %3, i64* %a
   %4 = add i64* %a, i64 120
-  %5 = call i64 @"foo1\CC\7F"(i64 123, i64* %4)
+  %5 = call i64 @"foo1-\7F"(i64 123, i64* %4)
   store i64 %5, i64* %b
 }

@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 
 
-type SymbolTable = HashMap<String, LLVMValueRef>;
+type SymbolTable = HashMap<String, IRValue>;
 
 pub struct LLVMGenerator {
     pub ctx: LLVMContextRef,
@@ -25,11 +25,38 @@ pub struct LLVMGenerator {
     pub locals: Vec<SymbolTable>,
 }
 
+#[derive(Debug, Clone)]
+pub struct IRValue {
+    pub val: LLVMValueRef,
+    pub kind: ValueKind,
+}
+
+#[derive(Debug, Clone)]
+pub enum ValueKind {
+    Ref,
+    Const,
+}
+
 /// Convert a string literal into a C string.
 macro_rules! c_str {
     ($s:expr) => {
         concat!($s, "\0").as_ptr() as *const i8
     };
+}
+
+impl IRValue {
+    pub fn new_const(v: LLVMValueRef) -> Self {
+        IRValue {
+            val: v,
+            kind: ValueKind::Const,
+        }
+    }
+    pub fn new_ref(v: LLVMValueRef) -> Self {
+        IRValue {
+            val: v,
+            kind: ValueKind::Ref,
+        }
+    }
 }
 
 impl LLVMGenerator {
@@ -73,7 +100,7 @@ impl LLVMGenerator {
         self.locals.pop();
     }
 
-    fn get(&self, var: &String) -> Option<LLVMValueRef> {
+    fn get(&self, var: &String) -> Option<IRValue> {
         let mut stk = self.locals.clone(); stk.reverse();
         for s in stk.iter() {
             if s.contains_key(var) {
@@ -93,7 +120,7 @@ impl LLVMGenerator {
             };
             let function = LLVMAddFunction(self.module, function_name.into_bytes().as_ptr() as *const _, function_type);
             let entry = CString::new("entry").unwrap();
-            self.functions.insert(ident_name(&ident), function);
+            self.functions.insert(ident_name(&ident), IRValue::new_ref(function));
             self.enter_scope();
             let bb = LLVMAppendBasicBlockInContext(self.ctx, function, entry.as_ptr());
             LLVMPositionBuilderAtEnd(self.builder, bb);
@@ -108,18 +135,18 @@ impl LLVMGenerator {
             let cname = CString::new(ident_name(&var)).unwrap();
             let ty = self.typeof_llvm(ident_type(&var));
             let _var = LLVMBuildAlloca(self.builder, ty, cname.as_ptr());
-            self.push_var(ident_name(&var), _var);
+            self.push_var(ident_name(&var), IRValue::new_ref(_var));
             let val = LLVMGetParam(func, idx as u32);
             LLVMBuildStore(self.builder, val, _var);
         }
     }
 
-    fn push_var(&mut self, var: String, val: LLVMValueRef) {
+    fn push_var(&mut self, var: String, val: IRValue) {
         let idx = self.locals.len();
         self.locals[idx-1].insert(var, val);
     }
 
-    fn push_global_var(&mut self, var: String, val: LLVMValueRef) {
+    fn push_global_var(&mut self, var: String, val: IRValue) {
         self.global.insert(var, val);
     }
 
@@ -127,37 +154,38 @@ impl LLVMGenerator {
         if let AstNode::VarDecl(ident, val, _) = var {
             let cname = CString::new(ident_name(&ident)).unwrap();
             let ty = self.typeof_llvm(ident_type(&ident));
-            let _var = LLVMBuildAlloca(self.builder, ty, cname.as_ptr());
+            let pvar = LLVMBuildAlloca(self.builder, ty, cname.as_ptr());
+            let _var = IRValue::new_ref(pvar);
             if global { self.push_global_var(ident_name(&ident), _var); }
             else { self.push_var(ident_name(&ident), _var); }
 
-            if !nil_node(val) { LLVMBuildStore(self.builder, self.gen_initializer(val), _var); }
+            if !nil_node(val) { LLVMBuildStore(self.builder, self.gen_initializer(val), pvar); }
         }
     }
 
     unsafe fn gen_initializer(&mut self, expr: &AstNode) -> LLVMValueRef {
         match expr {
-            AstNode::BinaryOp(_, _, _, _) => self.gen_op(expr),
-            _ => self.gen_value(expr),
+            AstNode::BinaryOp(_, _, _, _) => self.gen_op(expr).val,
+            _ => self.gen_value(expr).val,
         }
     }
 
     unsafe fn gen_return(&mut self, expr: &AstNode) {
         if let AstNode::ReturnStmt(var, _) = expr {
-            let val = match *var.clone() {
+            let irv = match *var.clone() {
                 AstNode::BinaryOp(_, _, _, _) => self.gen_op(var),
                 _ => self.gen_value(var),
             };
-            LLVMBuildRet(self.builder, val);
+            LLVMBuildRet(self.builder, irv.val);
             return ;
         }
         unreachable!("[gen_return] {:?}", expr);
     }
 
-    unsafe fn gen_value(&mut self, val: &AstNode) -> LLVMValueRef {
+    unsafe fn gen_value(&mut self, val: &AstNode) -> IRValue {
         match val {
-            AstNode::Int(v) => LLVMConstInt(self.i64_type(), *v as u64, 1),
-            AstNode::Float(v) => LLVMConstReal(self.f64_type(), *v as f64),
+            AstNode::Int(v) => IRValue::new_const(LLVMConstInt(self.i64_type(), *v as u64, 1)),
+            AstNode::Float(v) => IRValue::new_const(LLVMConstReal(self.f64_type(), *v as f64)),
             AstNode::FnCall(_, _) => self.gen_call(val),
             AstNode::Ident(name, _) => self.get(name).unwrap(),
             // TODO: supports String
@@ -165,12 +193,12 @@ impl LLVMGenerator {
         }
     }
 
-    unsafe fn gen_call(&mut self, func: &AstNode) -> LLVMValueRef {
+    unsafe fn gen_call(&mut self, func: &AstNode) -> IRValue {
         if let AstNode::FnCall(ident, args) = func {
             let name = ident_name(&ident);
-            let fnptr = self.functions[&name];
+            let fnptr = self.functions[&name].val;
             let mut _args: Vec<LLVMValueRef> = args.into_iter().map(|n| self.gen_initializer(n)).collect();
-            return LLVMBuildCall(self.builder, fnptr, _args.as_mut_ptr(), _args.len() as u32, c_str!(""))
+            return IRValue::new_ref(LLVMBuildCall(self.builder, fnptr, _args.as_mut_ptr(), _args.len() as u32, c_str!("")));
         }
         unreachable!();
     }
@@ -180,10 +208,10 @@ impl LLVMGenerator {
             AstNode::BinaryOp(lhs, _, _, _) => {
                 match *lhs.clone() {
                     AstNode::BinaryOp(_, _, _, _) => self.gen_conditional(lhs),
-                    _ => self.gen_expr_cmp(expr),
+                    _ => self.gen_expr_cmp(expr).val,
                 }
             },
-            _ => self.gen_value(expr),
+            _ => self.gen_value(expr).val,
         }
     }
 
@@ -203,37 +231,43 @@ impl LLVMGenerator {
         }
     }
 
-    unsafe fn gen_expr_cmp(&mut self, expr: &AstNode) -> LLVMValueRef {
+    unsafe fn gen_expr_cmp(&mut self, expr: &AstNode) -> IRValue {
         if let AstNode::BinaryOp(lhs, op, rhs, ty) = expr {
-            let lval = self.gen_value(lhs);
-            let rval = self.gen_value(rhs);
+            let lval = self.gen_value(lhs).val;
+            let rval = self.gen_value(rhs).val;
             let val = match ty {
                 AstType::Float => LLVMBuildFCmp(self.builder, self.llvm_float_op(op), lval, rval, c_str!("")),
                 AstType::Int => LLVMBuildICmp(self.builder, self.llvm_int_op(op), lval, rval, c_str!("")),
                 _ => unreachable!(),
             };
-            return val;
+            return IRValue::new_ref(val);
         }
         unreachable!();
     }
 
-    unsafe fn gen_op(&mut self, expr: &AstNode) -> LLVMValueRef {
+    unsafe fn gen_op(&mut self, expr: &AstNode) -> IRValue {
         if let AstNode::BinaryOp(var, op, val, ty) = expr {
-            let lval = match *var.clone() {
+            let lhs = match *var.clone() {
                 AstNode::BinaryOp(_, _, _, _) => self.gen_op(&var.clone()),
                 _ => self.gen_value(var),
             };
-            let rval = self.gen_value(val);
-            // let lptr = LLVMBuildLoad(self.builder, lval, c_str!(""));
-            // let rptr = LLVMBuildLoad(self.builder, rval, c_str!(""));
+            let rhs = self.gen_value(val);
+            let lval = match lhs.kind {
+                ValueKind::Ref => LLVMBuildLoad(self.builder, lhs.val, c_str!("")),
+                ValueKind::Const => lhs.val,
+            };
+            let rval = match rhs.kind {
+                ValueKind::Ref => LLVMBuildLoad(self.builder, rhs.val, c_str!("")),
+                ValueKind::Const => rhs.val,
+            };
             match op {
-                Operator::PLUS => { return LLVMBuildAdd(self.builder, lval, rval, c_str!("")); }
-                Operator::SUB => { return LLVMBuildSub(self.builder, lval, rval, c_str!("")); }
+                Operator::PLUS => { return IRValue::new_ref(LLVMBuildAdd(self.builder, lval, rval, c_str!(""))); }
+                Operator::SUB => { return IRValue::new_ref(LLVMBuildSub(self.builder, lval, rval, c_str!(""))); }
                 Operator::EQ => { return self.gen_expr_cmp(expr); }
                 Operator::MUL => {
                     match ty {
-                        AstType::Float => { return LLVMBuildFMul(self.builder, lval, rval, c_str!("")); }
-                        AstType::Int => { return LLVMBuildMul(self.builder, lval, rval, c_str!("")); }
+                        AstType::Float => { return IRValue::new_ref(LLVMBuildFMul(self.builder, lval, rval, c_str!(""))); }
+                        AstType::Int => { return IRValue::new_ref(LLVMBuildMul(self.builder, lval, rval, c_str!(""))); }
                         _ => unreachable!("[gen_op] {:?}", ty),
                     }
                 }
@@ -264,7 +298,7 @@ impl LLVMGenerator {
     unsafe fn gen_assign(&mut self, stmt: &AstNode) {
         if let AstNode::Assignment(var, val) = stmt {
             let _var = self.get(&ident_name(var)).unwrap();
-            LLVMBuildStore(self.builder, self.gen_initializer(val), _var);
+            LLVMBuildStore(self.builder, self.gen_initializer(val), _var.val);
             return ;
         }
         unreachable!();
