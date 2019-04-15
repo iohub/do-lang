@@ -152,7 +152,7 @@ fn typeof_binary_op(ev: &mut Env, n: &mut AstNode) -> AstType {
     unreachable!();
 }
 
-fn is_math_op(op: Operator) -> bool {
+fn _is_math_op(op: Operator) -> bool {
     match op {
         Operator::PLUS | Operator::SUB |
         Operator::MUL | Operator::DIV => true,

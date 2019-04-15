@@ -110,7 +110,7 @@ impl LLVMGenerator {
             let _var = LLVMBuildAlloca(self.builder, ty, cname.as_ptr());
             self.push_var(ident_name(&var), _var);
             let val = LLVMGetParam(func, idx as u32);
-            LLVMBuildStore(self.builder, _var, val);
+            LLVMBuildStore(self.builder, val, _var);
         }
     }
 
@@ -131,7 +131,7 @@ impl LLVMGenerator {
             if global { self.push_global_var(ident_name(&ident), _var); }
             else { self.push_var(ident_name(&ident), _var); }
 
-            if !nil_node(val) { LLVMBuildStore(self.builder, _var, self.gen_initializer(val)); }
+            if !nil_node(val) { LLVMBuildStore(self.builder, self.gen_initializer(val), _var); }
         }
     }
 
@@ -224,6 +224,8 @@ impl LLVMGenerator {
                 _ => self.gen_value(var),
             };
             let rval = self.gen_value(val);
+            // let lptr = LLVMBuildLoad(self.builder, lval, c_str!(""));
+            // let rptr = LLVMBuildLoad(self.builder, rval, c_str!(""));
             match op {
                 Operator::PLUS => { return LLVMBuildAdd(self.builder, lval, rval, c_str!("")); }
                 Operator::SUB => { return LLVMBuildSub(self.builder, lval, rval, c_str!("")); }
@@ -262,7 +264,7 @@ impl LLVMGenerator {
     unsafe fn gen_assign(&mut self, stmt: &AstNode) {
         if let AstNode::Assignment(var, val) = stmt {
             let _var = self.get(&ident_name(var)).unwrap();
-            LLVMBuildStore(self.builder, _var, self.gen_initializer(val));
+            LLVMBuildStore(self.builder, self.gen_initializer(val), _var);
             return ;
         }
         unreachable!();
@@ -301,7 +303,7 @@ impl LLVMGenerator {
         LLVMFloatTypeInContext(self.ctx)
     }
 
-    unsafe fn bool_type(&self) -> LLVMTypeRef {
+    unsafe fn _bool_type(&self) -> LLVMTypeRef {
         LLVMInt8TypeInContext(self.ctx)
     }
 
