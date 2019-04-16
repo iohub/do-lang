@@ -91,7 +91,6 @@ impl LLVMGenerator {
                 _ => (),
             }
         }
-
         // let ir = LLVMPrintModuleToString(self.module);
         // let ir_cstring = CString::from_raw(ir);
         // let ir = ir_cstring.to_str().unwrap();
@@ -209,7 +208,7 @@ impl LLVMGenerator {
             let name = ident_name(&ident);
             let fnptr = self.functions[&name].val;
             let mut _args: Vec<LLVMValueRef> = args.into_iter().map(|n| self.gen_initializer(n)).collect();
-            return ir_ref!(LLVMBuildCall(self.builder, fnptr, _args.as_mut_ptr(), _args.len() as u32, c_str!("")));
+            return ir_const!(LLVMBuildCall(self.builder, fnptr, _args.as_mut_ptr(), _args.len() as u32, c_str!("")));
         }
         unreachable!();
     }
@@ -259,7 +258,7 @@ impl LLVMGenerator {
     unsafe fn gen_op(&mut self, expr: &AstNode) -> IRValue {
         if let AstNode::BinaryOp(var, op, val, ty) = expr {
             let lhs = match *var.clone() {
-                AstNode::BinaryOp(_, _, _, _) => self.gen_op(&var.clone()),
+                AstNode::BinaryOp(_, _, _, _) => self.gen_op(&var),
                 _ => self.gen_value(var),
             };
             let rhs = self.gen_value(val);
@@ -272,7 +271,7 @@ impl LLVMGenerator {
                 ValueKind::Const => rhs.val,
             };
             match op {
-                Operator::PLUS => { return ir_ref!(LLVMBuildAdd(self.builder, lval, rval, c_str!(""))); }
+                Operator::PLUS => { return ir_const!(LLVMBuildAdd(self.builder, lval, rval, c_str!(""))); }
                 Operator::SUB => { return ir_ref!(LLVMBuildSub(self.builder, lval, rval, c_str!(""))); }
                 Operator::EQ => { return self.gen_expr_cmp(expr); }
                 Operator::MUL => {
