@@ -37,10 +37,21 @@ pub enum ValueKind {
     Const,
 }
 
-/// Convert a string literal into a C string.
 macro_rules! c_str {
     ($s:expr) => {
         concat!($s, "\0").as_ptr() as *const i8
+    };
+}
+
+macro_rules! ir_ref {
+    ($s:expr) => {
+        IRValue::new_ref($s)
+    };
+}
+
+macro_rules! ir_const {
+    ($s:expr) => {
+        IRValue::new_const($s)
     };
 }
 
@@ -120,7 +131,7 @@ impl LLVMGenerator {
             };
             let function = LLVMAddFunction(self.module, function_name.into_bytes().as_ptr() as *const _, function_type);
             let entry = CString::new("entry").unwrap();
-            self.functions.insert(ident_name(&ident), IRValue::new_ref(function));
+            self.functions.insert(ident_name(&ident), ir_ref!(function));
             self.enter_scope();
             let bb = LLVMAppendBasicBlockInContext(self.ctx, function, entry.as_ptr());
             LLVMPositionBuilderAtEnd(self.builder, bb);
@@ -135,7 +146,7 @@ impl LLVMGenerator {
             let cname = CString::new(ident_name(&var)).unwrap();
             let ty = self.typeof_llvm(ident_type(&var));
             let _var = LLVMBuildAlloca(self.builder, ty, cname.as_ptr());
-            self.push_var(ident_name(&var), IRValue::new_ref(_var));
+            self.push_var(ident_name(&var), ir_ref!(_var));
             let val = LLVMGetParam(func, idx as u32);
             LLVMBuildStore(self.builder, val, _var);
         }
@@ -155,7 +166,7 @@ impl LLVMGenerator {
             let cname = CString::new(ident_name(&ident)).unwrap();
             let ty = self.typeof_llvm(ident_type(&ident));
             let pvar = LLVMBuildAlloca(self.builder, ty, cname.as_ptr());
-            let _var = IRValue::new_ref(pvar);
+            let _var = ir_ref!(pvar);
             if global { self.push_global_var(ident_name(&ident), _var); }
             else { self.push_var(ident_name(&ident), _var); }
 
@@ -184,8 +195,8 @@ impl LLVMGenerator {
 
     unsafe fn gen_value(&mut self, val: &AstNode) -> IRValue {
         match val {
-            AstNode::Int(v) => IRValue::new_const(LLVMConstInt(self.i64_type(), *v as u64, 1)),
-            AstNode::Float(v) => IRValue::new_const(LLVMConstReal(self.f64_type(), *v as f64)),
+            AstNode::Int(v) => ir_const!(LLVMConstInt(self.i64_type(), *v as u64, 1)),
+            AstNode::Float(v) => ir_const!(LLVMConstReal(self.f64_type(), *v as f64)),
             AstNode::FnCall(_, _) => self.gen_call(val),
             AstNode::Ident(name, _) => self.get(name).unwrap(),
             // TODO: supports String
@@ -198,7 +209,7 @@ impl LLVMGenerator {
             let name = ident_name(&ident);
             let fnptr = self.functions[&name].val;
             let mut _args: Vec<LLVMValueRef> = args.into_iter().map(|n| self.gen_initializer(n)).collect();
-            return IRValue::new_ref(LLVMBuildCall(self.builder, fnptr, _args.as_mut_ptr(), _args.len() as u32, c_str!("")));
+            return ir_ref!(LLVMBuildCall(self.builder, fnptr, _args.as_mut_ptr(), _args.len() as u32, c_str!("")));
         }
         unreachable!();
     }
@@ -240,7 +251,7 @@ impl LLVMGenerator {
                 AstType::Int => LLVMBuildICmp(self.builder, self.llvm_int_op(op), lval, rval, c_str!("")),
                 _ => unreachable!(),
             };
-            return IRValue::new_ref(val);
+            return ir_ref!(val);
         }
         unreachable!();
     }
@@ -261,13 +272,13 @@ impl LLVMGenerator {
                 ValueKind::Const => rhs.val,
             };
             match op {
-                Operator::PLUS => { return IRValue::new_ref(LLVMBuildAdd(self.builder, lval, rval, c_str!(""))); }
-                Operator::SUB => { return IRValue::new_ref(LLVMBuildSub(self.builder, lval, rval, c_str!(""))); }
+                Operator::PLUS => { return ir_ref!(LLVMBuildAdd(self.builder, lval, rval, c_str!(""))); }
+                Operator::SUB => { return ir_ref!(LLVMBuildSub(self.builder, lval, rval, c_str!(""))); }
                 Operator::EQ => { return self.gen_expr_cmp(expr); }
                 Operator::MUL => {
                     match ty {
-                        AstType::Float => { return IRValue::new_ref(LLVMBuildFMul(self.builder, lval, rval, c_str!(""))); }
-                        AstType::Int => { return IRValue::new_ref(LLVMBuildMul(self.builder, lval, rval, c_str!(""))); }
+                        AstType::Float => { return ir_ref!(LLVMBuildFMul(self.builder, lval, rval, c_str!(""))); }
+                        AstType::Int => { return ir_ref!(LLVMBuildMul(self.builder, lval, rval, c_str!(""))); }
                         _ => unreachable!("[gen_op] {:?}", ty),
                     }
                 }
