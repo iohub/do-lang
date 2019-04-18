@@ -243,16 +243,23 @@ impl LLVMGenerator {
 
     unsafe fn gen_expr_cmp(&mut self, expr: &AstNode) -> IRValue {
         if let AstNode::BinaryOp(lhs, op, rhs, ty) = expr {
-            let lval = self.gen_value(lhs).val;
-            let rval = self.gen_value(rhs).val;
+            let lval = self.gen_value(lhs);
+            let rval = self.gen_value(rhs);
             let val = match ty {
-                AstType::Float => LLVMBuildFCmp(self.builder, self.llvm_float_op(op), lval, rval, c_str!("")),
-                AstType::Int => LLVMBuildICmp(self.builder, self.llvm_int_op(op), lval, rval, c_str!("")),
+                AstType::Float => LLVMBuildFCmp(self.builder, self.llvm_float_op(op), self.load(&lval), self.load(&rval), c_str!("")),
+                AstType::Int => LLVMBuildICmp(self.builder, self.llvm_int_op(op), self.load(&lval), self.load(&rval), c_str!("")),
                 _ => unreachable!(),
             };
             return ir_ref!(val);
         }
         unreachable!();
+    }
+
+    unsafe fn load(&mut self, var: &IRValue) -> LLVMValueRef {
+        match var.kind {
+            ValueKind::Ref => LLVMBuildLoad(self.builder, var.val, c_str!("")),
+            ValueKind::Const => var.val,
+        }
     }
 
     unsafe fn gen_op(&mut self, expr: &AstNode) -> IRValue {
@@ -262,22 +269,14 @@ impl LLVMGenerator {
                 _ => self.gen_value(var),
             };
             let rhs = self.gen_value(val);
-            let lval = match lhs.kind {
-                ValueKind::Ref => LLVMBuildLoad(self.builder, lhs.val, c_str!("")),
-                ValueKind::Const => lhs.val,
-            };
-            let rval = match rhs.kind {
-                ValueKind::Ref => LLVMBuildLoad(self.builder, rhs.val, c_str!("")),
-                ValueKind::Const => rhs.val,
-            };
             match op {
-                Operator::PLUS => { return ir_const!(LLVMBuildAdd(self.builder, lval, rval, c_str!(""))); }
-                Operator::SUB => { return ir_ref!(LLVMBuildSub(self.builder, lval, rval, c_str!(""))); }
+                Operator::PLUS => { return ir_const!(LLVMBuildAdd(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
+                Operator::SUB => { return ir_ref!(LLVMBuildSub(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
                 Operator::EQ => { return self.gen_expr_cmp(expr); }
                 Operator::MUL => {
                     match ty {
-                        AstType::Float => { return ir_ref!(LLVMBuildFMul(self.builder, lval, rval, c_str!(""))); }
-                        AstType::Int => { return ir_ref!(LLVMBuildMul(self.builder, lval, rval, c_str!(""))); }
+                        AstType::Float => { return ir_ref!(LLVMBuildFMul(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
+                        AstType::Int => { return ir_ref!(LLVMBuildMul(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
                         _ => unreachable!("[gen_op] {:?}", ty),
                     }
                 }
