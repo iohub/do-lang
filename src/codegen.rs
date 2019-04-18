@@ -186,7 +186,7 @@ impl LLVMGenerator {
                 AstNode::BinaryOp(_, _, _, _) => self.gen_op(var),
                 _ => self.gen_value(var),
             };
-            LLVMBuildRet(self.builder, irv.val);
+            LLVMBuildRet(self.builder, self.load(&irv));
             return ;
         }
         unreachable!("[gen_return] {:?}", expr);
@@ -316,15 +316,27 @@ impl LLVMGenerator {
     unsafe fn gen_ifstmt(&mut self, stmt: &AstNode) {
         if let AstNode::IfStmt(cond, tstmt, fstmt) = stmt {
             let condval = self.gen_conditional(cond);
+
             let current = LLVMGetInsertBlock(self.builder);
             let parent = LLVMGetBasicBlockParent(current);
+
             let tblock = LLVMAppendBasicBlock(parent, c_str!("if-then"));
-            let fblock = LLVMAppendBasicBlock(parent, c_str!("if-else"));
-            LLVMBuildCondBr(self.builder, condval, tblock, fblock);
+            let eblock = LLVMAppendBasicBlock(parent, c_str!("if-else"));
+            let mblock = LLVMAppendBasicBlock(parent, c_str!("merge"));
+
+            LLVMBuildCondBr(self.builder, condval, tblock, eblock);
+            LLVMMoveBasicBlockAfter(tblock, LLVMGetInsertBlock(self.builder));
             LLVMPositionBuilderAtEnd(self.builder, tblock);
             self.gen_block(tstmt);
-            LLVMPositionBuilderAtEnd(self.builder, fblock);
+            LLVMBuildBr(self.builder, mblock);
+
+            LLVMMoveBasicBlockAfter(eblock, LLVMGetInsertBlock(self.builder));
+            LLVMPositionBuilderAtEnd(self.builder, eblock);
             self.gen_block(fstmt);
+            LLVMBuildBr(self.builder, mblock);
+
+            LLVMMoveBasicBlockAfter(mblock, LLVMGetInsertBlock(self.builder));
+            LLVMPositionBuilderAtEnd(self.builder, mblock);
         }
     }
 
