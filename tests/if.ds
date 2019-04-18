@@ -1,0 +1,10 @@
+
+
+fn main() -> int {
+    let a = 1001 + 92;
+    let retval: int;
+    if a > 92 {
+        retval = a + 13;
+    }
+    return retval;
+}

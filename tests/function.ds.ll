@@ -1,82 +1,98 @@
 ; ModuleID = '__module'
 
-define i64 @"foo1\CC\7F"(i64, i64) {
+define i64 @"foo1\8A\7F"(i64, i64) {
 entry:
   %a = alloca i64
   store i64 %0, i64* %a
   %b = alloca i64
   store i64 %1, i64* %b
   %c = alloca i64
-  %2 = add i64* %a, i64 1001
-  store i64* %2, i64* %c
+  %2 = load i64, i64* %a
+  %3 = add i64 %2, 1001
+  store i64 %3, i64* %c
   %d = alloca i64
   %ok = alloca float
   store float 0x405EDD2F20000000, float* %ok
-  %3 = fcmp ogt float* %ok, float 0x405907DF40000000
-  br i1 %3, label %if-then, label %if-else
+  %4 = load float, float* %ok
+  %5 = fcmp ogt float %4, 0x405907DF40000000
+  br i1 %5, label %if-then, label %if-else
 
 if-then:                                          ; preds = %entry
   %val = alloca float
   store float 0x405ECF5C20000000, float* %val
-  %4 = add i64* %b, i64 1992
-  %5 = add i64* %4, %c
-  %6 = add i64* %5, %a
-  store i64* %6, i64* %d
-  %7 = add float* %val, float 0x3FEBD70A40000000
-  store float* %7, float* %val
+  %6 = load i64, i64* %b
+  %7 = add i64 %6, 1992
+  %8 = load i64, i64* %c
+  %9 = add i64 %7, %8
+  %10 = load i64, i64* %a
+  %11 = add i64 %9, %10
+  store i64 %11, i64* %d
+  %12 = load float, float* %val
+  %13 = add float %12, 0x3FEBD70A40000000
+  store float %13, float* %val
 
 if-else:                                          ; preds = %entry
-  %8 = icmp sgt i64* %c, i64 100
-  br i1 %8, label %if-then1, label %if-else2
+  %14 = load i64, i64* %c
+  %15 = icmp sgt i64 %14, 100
+  br i1 %15, label %if-then1, label %if-else2
 
 if-then1:                                         ; preds = %if-else
   %bv = alloca i64
   store i64 1002, i64* %bv
-  %9 = add i64* %bv, %c
-  store i64* %9, i64* %c
+  %16 = load i64, i64* %bv
+  %17 = load i64, i64* %c
+  %18 = add i64 %16, %17
+  store i64 %18, i64* %c
 
 if-else2:                                         ; preds = %if-else
-  %10 = add i64* %c, %d
-  store i64* %10, i64* %a
+  %19 = load i64, i64* %c
+  %20 = load i64, i64* %d
+  %21 = add i64 %19, %20
+  store i64 %21, i64* %a
   ret i64* %a
 }
 
-define i8 @"foo2\ADU"(i64) {
+define i8 @foo24V(i64) {
 entry:
   %a = alloca i64
   store i64 %0, i64* %a
-  %1 = icmp eq i64* %a, i64 100
-  ret i1 %1
+  %1 = load i64, i64* %a
+  %2 = icmp eq i64 %1, 100
+  ret i1 %2
 }
 
-define i64 @"fact\CC\7F"(i64) {
+define i64 @"fact\8A\7F"(i64) {
 entry:
   %n = alloca i64
   store i64 %0, i64* %n
-  %1 = icmp eq i64* %n, i64 1
-  br i1 %1, label %if-then, label %if-else
+  %1 = load i64, i64* %n
+  %2 = icmp eq i64 %1, 1
+  br i1 %2, label %if-then, label %if-else
 
 if-then:                                          ; preds = %entry
   ret i64 1
 
 if-else:                                          ; preds = %entry
-  %2 = sub i64* %n, i64 1
-  %3 = call i64 @"fact\CC\7F"(i64* %2)
-  %4 = mul i64 %3, i64* %n
-  ret i64 %4
+  %3 = load i64, i64* %n
+  %4 = sub i64 %3, 1
+  %5 = call i64 @"fact\8A\7F"(i64 %4)
+  %6 = load i64, i64* %n
+  %7 = mul i64 %5, %6
+  ret i64 %7
 }
 
-define i64 @"main\CC\7F"() {
+define i64 @"main\8A\7F"() {
 entry:
   %a = alloca i64
   store i64 1093, i64* %a
   %b = alloca i64
-  %0 = call i64 @"foo1\CC\7F"(i64* %a, i64 100)
+  %0 = call i64 @"foo1\8A\7F"(i64* %a, i64 100)
   %1 = add i64 %0, 123
-  %2 = call i64 @"foo1\CC\7F"(i64* %a, i64 12)
+  %2 = call i64 @"foo1\8A\7F"(i64* %a, i64 12)
   %3 = add i64 %1, %2
   store i64 %3, i64* %a
-  %4 = add i64* %a, i64 120
-  %5 = call i64 @"foo1\CC\7F"(i64 123, i64* %4)
-  store i64 %5, i64* %b
+  %4 = load i64, i64* %a
+  %5 = add i64 %4, 120
+  %6 = call i64 @"foo1\8A\7F"(i64 123, i64 %5)
+  store i64 %6, i64* %b
 }
