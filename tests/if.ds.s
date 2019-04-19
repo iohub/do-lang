@@ -1,9 +1,9 @@
 	.text
 	.file	"tests/if.ds.ll"
-	.globl	"mainå"
+	.globl	"maink"
 	.align	16, 0x90
-	.type	"mainå",@function
-"mainå":                               # @"main\8C\7F"
+	.type	"maink",@function
+"maink":                               # @"maink\7F"
 	.cfi_startproc
 # BB#0:                                 # %entry
 	movq	$1093, -8(%rsp)         # imm = 0x445
@@ -18,7 +18,7 @@
 	movq	-16(%rsp), %rax
 	retq
 .Lfunc_end0:
-	.size	"mainå", .Lfunc_end0-"mainå"
+	.size	"maink", .Lfunc_end0-"maink"
 	.cfi_endproc
 
 
