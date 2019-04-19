@@ -12,7 +12,6 @@ use crate::ast::*;
 use std::collections::HashMap;
 
 
-
 type SymbolTable = HashMap<String, IRValue>;
 
 pub struct LLVMGenerator {
@@ -174,10 +173,11 @@ impl LLVMGenerator {
     }
 
     unsafe fn gen_initializer(&mut self, expr: &AstNode) -> LLVMValueRef {
-        match expr {
-            AstNode::BinaryOp(_, _, _, _) => self.gen_op(expr).val,
-            _ => self.gen_value(expr).val,
-        }
+        let irv = match expr {
+            AstNode::BinaryOp(_, _, _, _) => self.gen_op(expr),
+            _ => self.gen_value(expr),
+        };
+        return self.load(&irv);
     }
 
     unsafe fn gen_return(&mut self, expr: &AstNode) {
@@ -250,7 +250,7 @@ impl LLVMGenerator {
                 AstType::Int => LLVMBuildICmp(self.builder, self.llvm_int_op(op), self.load(&lval), self.load(&rval), c_str!("")),
                 _ => unreachable!(),
             };
-            return ir_ref!(val);
+            return ir_const!(val);
         }
         unreachable!();
     }
@@ -270,13 +270,25 @@ impl LLVMGenerator {
             };
             let rhs = self.gen_value(val);
             match op {
-                Operator::PLUS => { return ir_const!(LLVMBuildAdd(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
-                Operator::SUB => { return ir_ref!(LLVMBuildSub(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
+                Operator::PLUS => {
+                    match ty {
+                        AstType::Float => { return ir_const!(LLVMBuildFAdd(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
+                        AstType::Int => { return ir_const!(LLVMBuildAdd(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
+                        _ => unreachable!("[gen_op] {:?}", ty),
+                    }
+                }
+                Operator::SUB => {
+                    match ty {
+                        AstType::Float => { return ir_const!(LLVMBuildFSub(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
+                        AstType::Int => { return ir_const!(LLVMBuildSub(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
+                        _ => unreachable!("[gen_op] {:?}", ty),
+                    }
+                }
                 Operator::EQ => { return self.gen_expr_cmp(expr); }
                 Operator::MUL => {
                     match ty {
-                        AstType::Float => { return ir_ref!(LLVMBuildFMul(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
-                        AstType::Int => { return ir_ref!(LLVMBuildMul(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
+                        AstType::Float => { return ir_const!(LLVMBuildFMul(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
+                        AstType::Int => { return ir_const!(LLVMBuildMul(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
                         _ => unreachable!("[gen_op] {:?}", ty),
                     }
                 }
@@ -345,7 +357,7 @@ impl LLVMGenerator {
             AstType::Int => LLVMInt64TypeInContext(self.ctx),
             AstType::Float => LLVMFloatTypeInContext(self.ctx),
             // TODO: AstType::Str => LLVMConstStringInContext(self.ctx),
-            AstType::Bool => LLVMInt8TypeInContext(self.ctx),
+            AstType::Bool => LLVMInt1TypeInContext(self.ctx),
             _ => LLVMInt8TypeInContext(self.ctx),
         }
     }
@@ -358,8 +370,8 @@ impl LLVMGenerator {
         LLVMFloatTypeInContext(self.ctx)
     }
 
-    unsafe fn _bool_type(&self) -> LLVMTypeRef {
-        LLVMInt8TypeInContext(self.ctx)
+    unsafe fn bool_type(&self) -> LLVMTypeRef {
+        LLVMInt1TypeInContext(self.ctx)
     }
 
 }
