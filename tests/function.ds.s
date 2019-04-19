@@ -5,10 +5,10 @@
 .LCPI0_0:
 	.long	1063172178              # float 0.870000004
 	.text
-	.globl	"foo1®"
+	.globl	"foo1%"
 	.align	16, 0x90
-	.type	"foo1®",@function
-"foo1®":                               # @"foo1\A8\7F"
+	.type	"foo1%",@function
+"foo1%":                               # @"foo1%\7F"
 	.cfi_startproc
 # BB#0:                                 # %entry
 	pushq	%rbp
@@ -41,7 +41,7 @@
 	movss	-16(%rax), %xmm0        # xmm0 = mem[0],zero,zero,zero
 	addss	.LCPI0_0(%rip), %xmm0
 	movss	%xmm0, -16(%rax)
-.LBB0_2:                                # %merge
+.LBB0_2:                                # %if-merge
 	cmpq	$101, -24(%rbp)
 	jl	.LBB0_4
 # BB#3:                                 # %if-then1
@@ -49,7 +49,7 @@
 	leaq	-16(%rax), %rsp
 	movq	$1002, -16(%rax)        # imm = 0x3EA
 	addq	$1002, -24(%rbp)        # imm = 0x3EA
-.LBB0_4:                                # %merge3
+.LBB0_4:                                # %if-merge3
 	movq	-24(%rbp), %rax
 	addq	-32(%rbp), %rax
 	movq	%rax, -8(%rbp)
@@ -57,13 +57,13 @@
 	popq	%rbp
 	retq
 .Lfunc_end0:
-	.size	"foo1®", .Lfunc_end0-"foo1®"
+	.size	"foo1%", .Lfunc_end0-"foo1%"
 	.cfi_endproc
 
-	.globl	"foo2ÔU"
+	.globl	"foo2“U"
 	.align	16, 0x90
-	.type	"foo2ÔU",@function
-"foo2ÔU":                               # @"foo2\EFU"
+	.type	"foo2“U",@function
+"foo2“U":                               # @"foo2\D2U"
 	.cfi_startproc
 # BB#0:                                 # %entry
 	movq	%rdi, -8(%rsp)
@@ -71,32 +71,40 @@
 	sete	%al
 	retq
 .Lfunc_end1:
-	.size	"foo2ÔU", .Lfunc_end1-"foo2ÔU"
+	.size	"foo2“U", .Lfunc_end1-"foo2“U"
 	.cfi_endproc
 
-	.globl	"fact®"
+	.globl	"fact%"
 	.align	16, 0x90
-	.type	"fact®",@function
-"fact®":                               # @"fact\A8\7F"
+	.type	"fact%",@function
+"fact%":                               # @"fact%\7F"
 	.cfi_startproc
 # BB#0:                                 # %entry
 	pushq	%rax
 .Ltmp3:
 	.cfi_def_cfa_offset 16
 	movq	%rdi, (%rsp)
+	cmpq	$1, %rdi
+	jne	.LBB2_2
+# BB#1:                                 # %if-then
+	movl	$1, %eax
+	popq	%rcx
+	retq
+.LBB2_2:                                # %if-else
+	movq	(%rsp), %rdi
 	decq	%rdi
-	callq	"fact®"
+	callq	"fact%"
 	imulq	(%rsp), %rax
 	popq	%rcx
 	retq
 .Lfunc_end2:
-	.size	"fact®", .Lfunc_end2-"fact®"
+	.size	"fact%", .Lfunc_end2-"fact%"
 	.cfi_endproc
 
-	.globl	"main®"
+	.globl	"main%"
 	.align	16, 0x90
-	.type	"main®",@function
-"main®":                               # @"main\A8\7F"
+	.type	"main%",@function
+"main%":                               # @"main%\7F"
 	.cfi_startproc
 # BB#0:                                 # %entry
 	pushq	%rbx
@@ -110,23 +118,23 @@
 	movq	$1093, 8(%rsp)          # imm = 0x445
 	movl	$1093, %edi             # imm = 0x445
 	movl	$100, %esi
-	callq	"foo1®"
+	callq	"foo1%"
 	movq	%rax, %rbx
 	movq	8(%rsp), %rdi
 	movl	$12, %esi
-	callq	"foo1®"
+	callq	"foo1%"
 	leaq	123(%rbx,%rax), %rcx
 	movq	%rcx, 8(%rsp)
 	leaq	243(%rbx,%rax), %rsi
 	movl	$123, %edi
-	callq	"foo1®"
+	callq	"foo1%"
 	movq	%rax, (%rsp)
-	movl	$1, %eax
+	xorl	%eax, %eax
 	addq	$16, %rsp
 	popq	%rbx
 	retq
 .Lfunc_end3:
-	.size	"main®", .Lfunc_end3-"main®"
+	.size	"main%", .Lfunc_end3-"main%"
 	.cfi_endproc
 
 

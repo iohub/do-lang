@@ -54,6 +54,7 @@ macro_rules! ir_const {
     };
 }
 
+
 impl IRValue {
     pub fn new_const(v: LLVMValueRef) -> Self {
         IRValue {
@@ -134,7 +135,9 @@ impl LLVMGenerator {
             let bb = LLVMAppendBasicBlockInContext(self.ctx, function, entry.as_ptr());
             LLVMPositionBuilderAtEnd(self.builder, bb);
             self.alloc_param(function, &param);
-            self.gen_block(&block);
+            if !self.gen_block(&block) {
+                self.gen_default_return(ident_type(&ident.clone()));
+            }
             self.leave_scope();
         }
     }
@@ -190,6 +193,11 @@ impl LLVMGenerator {
             return ;
         }
         unreachable!("[gen_return] {:?}", expr);
+    }
+
+    unsafe fn gen_default_return(&mut self, ty: AstType) {
+        let irv = self.llvm_default_value(ty);
+        LLVMBuildRet(self.builder, irv);
     }
 
     unsafe fn gen_value(&mut self, val: &AstNode) -> IRValue {
@@ -304,16 +312,18 @@ impl LLVMGenerator {
         return ty;
     }
 
-    unsafe fn gen_block(&mut self, stmts: &Vec<AstNode>) {
+    unsafe fn gen_block(&mut self, stmts: &Vec<AstNode>) -> bool {
+        let mut ret = false;
         for stmt in stmts {
             match stmt {
                 AstNode::VarDecl(_, _, _) => self.gen_vardecl(stmt, false),
                 AstNode::IfStmt(_, _, _) => self.gen_ifstmt(stmt),
                 AstNode::Assignment(_, _) => self.gen_assign(stmt),
-                AstNode::ReturnStmt(_, _) => { self.gen_return(stmt); }
+                AstNode::ReturnStmt(_, _) => { self.gen_return(stmt); ret = true; }
                 _ => (),
             }
         }
+        return ret;
     }
 
     unsafe fn gen_assign(&mut self, stmt: &AstNode) {
@@ -334,18 +344,16 @@ impl LLVMGenerator {
 
             let tblock = LLVMAppendBasicBlock(parent, c_str!("if-then"));
             let eblock = LLVMAppendBasicBlock(parent, c_str!("if-else"));
-            let mblock = LLVMAppendBasicBlock(parent, c_str!("merge"));
+            let mblock = LLVMAppendBasicBlock(parent, c_str!("if-merge"));
 
             LLVMBuildCondBr(self.builder, condval, tblock, eblock);
             LLVMMoveBasicBlockAfter(tblock, LLVMGetInsertBlock(self.builder));
             LLVMPositionBuilderAtEnd(self.builder, tblock);
-            self.gen_block(tstmt);
-            LLVMBuildBr(self.builder, mblock);
+            if !self.gen_block(tstmt) { LLVMBuildBr(self.builder, mblock); }
 
             LLVMMoveBasicBlockAfter(eblock, LLVMGetInsertBlock(self.builder));
             LLVMPositionBuilderAtEnd(self.builder, eblock);
-            self.gen_block(fstmt);
-            LLVMBuildBr(self.builder, mblock);
+            if !self.gen_block(fstmt) { LLVMBuildBr(self.builder, mblock); }
 
             LLVMMoveBasicBlockAfter(mblock, LLVMGetInsertBlock(self.builder));
             LLVMPositionBuilderAtEnd(self.builder, mblock);
@@ -359,6 +367,15 @@ impl LLVMGenerator {
             // TODO: AstType::Str => LLVMConstStringInContext(self.ctx),
             AstType::Bool => LLVMInt1TypeInContext(self.ctx),
             _ => LLVMInt8TypeInContext(self.ctx),
+        }
+    }
+
+    unsafe fn llvm_default_value(&mut self, t: AstType) -> LLVMValueRef {
+        match t {
+            AstType::Int => LLVMConstInt(self.i64_type(), 0 as u64, 1),
+            AstType::Float => LLVMConstReal(self.f64_type(), 0 as f64),
+            AstType::Bool => LLVMConstInt(self.bool_type(), 0 as u64, 0),
+            _ => LLVMConstInt(self.i64_type(), 0 as u64, 1),
         }
     }
 
