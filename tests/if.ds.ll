@@ -1,6 +1,6 @@
 ; ModuleID = '__module'
 
-define i64 @"maink\7F"() {
+define i64 @"main\AB\7F"() {
 entry:
   %a = alloca i64
   store i64 1093, i64* %a
