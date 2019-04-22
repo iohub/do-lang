@@ -20,6 +20,7 @@ pub struct LLVMGenerator {
     pub builder: LLVMBuilderRef,
 
     pub functions: SymbolTable,
+    pub loops: Vec<(LLVMBasicBlockRef, LLVMBasicBlockRef)>,
     pub global: SymbolTable,
     pub locals: Vec<SymbolTable>,
 }
@@ -80,6 +81,7 @@ impl LLVMGenerator {
             functions: HashMap::new(),
             global: HashMap::new(),
             locals: Vec::new(),
+            loops: Vec::new(),
         }
     }
 
@@ -135,7 +137,8 @@ impl LLVMGenerator {
             let bb = LLVMAppendBasicBlockInContext(self.ctx, function, entry.as_ptr());
             LLVMPositionBuilderAtEnd(self.builder, bb);
             self.alloc_param(function, &param);
-            if !self.gen_block(&block) {
+            self.gen_block(&block);
+            if LLVMGetBasicBlockTerminator(bb).is_null() {
                 self.gen_default_return(ident_type(&ident.clone()));
             }
             self.leave_scope();
@@ -206,6 +209,7 @@ impl LLVMGenerator {
             AstNode::Float(v) => ir_const!(LLVMConstReal(self.f64_type(), *v as f64)),
             AstNode::FnCall(_, _) => self.gen_call(val),
             AstNode::Ident(name, _) => self.get(name).unwrap(),
+            AstNode::BinaryOp(_, _, _, _) => self.gen_op(val),
             // TODO: supports String
             _ => unreachable!("{:?}", val),
         }
@@ -280,23 +284,35 @@ impl LLVMGenerator {
             match op {
                 Operator::PLUS => {
                     match ty {
-                        AstType::Float => { return ir_const!(LLVMBuildFAdd(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
-                        AstType::Int => { return ir_const!(LLVMBuildAdd(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
+                        AstType::Float => {
+                            return ir_const!(LLVMBuildFAdd(self.builder, self.load(&lhs), self.load(&rhs), c_str!("")));
+                        }
+                        AstType::Int => {
+                            return ir_const!(LLVMBuildAdd(self.builder, self.load(&lhs), self.load(&rhs), c_str!("")));
+                        }
                         _ => unreachable!("[gen_op] {:?}", ty),
                     }
                 }
                 Operator::SUB => {
                     match ty {
-                        AstType::Float => { return ir_const!(LLVMBuildFSub(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
-                        AstType::Int => { return ir_const!(LLVMBuildSub(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
+                        AstType::Float => {
+                            return ir_const!(LLVMBuildFSub(self.builder, self.load(&lhs), self.load(&rhs), c_str!("")));
+                        }
+                        AstType::Int => {
+                            return ir_const!(LLVMBuildSub(self.builder, self.load(&lhs), self.load(&rhs), c_str!("")));
+                        }
                         _ => unreachable!("[gen_op] {:?}", ty),
                     }
                 }
                 Operator::EQ => { return self.gen_expr_cmp(expr); }
                 Operator::MUL => {
                     match ty {
-                        AstType::Float => { return ir_const!(LLVMBuildFMul(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
-                        AstType::Int => { return ir_const!(LLVMBuildMul(self.builder, self.load(&lhs), self.load(&rhs), c_str!(""))); }
+                        AstType::Float => {
+                            return ir_const!(LLVMBuildFMul(self.builder, self.load(&lhs), self.load(&rhs), c_str!("")));
+                        }
+                        AstType::Int => {
+                            return ir_const!(LLVMBuildMul(self.builder, self.load(&lhs), self.load(&rhs), c_str!("")));
+                        }
                         _ => unreachable!("[gen_op] {:?}", ty),
                     }
                 }
@@ -320,6 +336,7 @@ impl LLVMGenerator {
                 AstNode::IfStmt(_, _, _) => self.gen_ifstmt(stmt),
                 AstNode::Assignment(_, _) => self.gen_assign(stmt),
                 AstNode::ReturnStmt(_, _) => { self.gen_return(stmt); ret = true; }
+                AstNode::WhileStmt(_, _) => self.gen_while(stmt),
                 _ => (),
             }
         }
@@ -335,6 +352,37 @@ impl LLVMGenerator {
         unreachable!();
     }
 
+    unsafe fn gen_while(&mut self, stmt: &AstNode) {
+        if let AstNode::WhileStmt(cond, body) = stmt {
+
+            let parent = LLVMGetBasicBlockParent(LLVMGetInsertBlock(self.builder));
+            let cond_block = LLVMAppendBasicBlock(parent, c_str!("while:cond"));
+            let body_block = LLVMAppendBasicBlock(parent, c_str!("while:body"));
+            let merge_block = LLVMAppendBasicBlock(parent, c_str!("while:merge"));
+
+            LLVMBuildBr(self.builder, cond_block);
+            LLVMPositionBuilderAtEnd(self.builder, cond_block);
+            let condval = self.gen_conditional(cond);
+            LLVMBuildCondBr(self.builder, condval, body_block, merge_block);
+            self.loops.push((cond_block, merge_block));
+            // move to body block
+            LLVMMoveBasicBlockAfter(body_block, LLVMGetInsertBlock(self.builder));
+            LLVMPositionBuilderAtEnd(self.builder, body_block);
+            self.gen_block(body);
+            if LLVMGetBasicBlockTerminator(LLVMGetInsertBlock(self.builder)).is_null() {
+                LLVMBuildBr(self.builder, cond_block);
+            }
+            self.loops.pop();
+            // move to merge block
+            // TODO: fix empty merge block
+            LLVMMoveBasicBlockAfter(merge_block, LLVMGetInsertBlock(self.builder));
+            LLVMPositionBuilderAtEnd(self.builder, merge_block);
+            LLVMGetUndef(LLVMVoidType());
+            return ;
+        }
+        unreachable!("[gen_while]: {:?}", stmt);
+    }
+
     unsafe fn gen_ifstmt(&mut self, stmt: &AstNode) {
         if let AstNode::IfStmt(cond, tstmt, fstmt) = stmt {
             let condval = self.gen_conditional(cond);
@@ -342,21 +390,38 @@ impl LLVMGenerator {
             let current = LLVMGetInsertBlock(self.builder);
             let parent = LLVMGetBasicBlockParent(current);
 
-            let tblock = LLVMAppendBasicBlock(parent, c_str!("if-then"));
-            let eblock = LLVMAppendBasicBlock(parent, c_str!("if-else"));
-            let mblock = LLVMAppendBasicBlock(parent, c_str!("if-merge"));
+            let tblock = LLVMAppendBasicBlock(parent, c_str!("if:then"));
+            let eblock = LLVMAppendBasicBlock(parent, c_str!("if:else"));
+            let mblock = LLVMAppendBasicBlock(parent, c_str!("if:merge"));
 
             LLVMBuildCondBr(self.builder, condval, tblock, eblock);
             LLVMMoveBasicBlockAfter(tblock, LLVMGetInsertBlock(self.builder));
             LLVMPositionBuilderAtEnd(self.builder, tblock);
-            if !self.gen_block(tstmt) { LLVMBuildBr(self.builder, mblock); }
+            let mut then_term = true;
+            self.gen_block(tstmt);
+            if LLVMGetBasicBlockTerminator(tblock).is_null() {
+                LLVMBuildBr(self.builder, mblock);
+                then_term = false;
+            }
+            // if !self.gen_block(tstmt) { LLVMBuildBr(self.builder, mblock); }
 
             LLVMMoveBasicBlockAfter(eblock, LLVMGetInsertBlock(self.builder));
             LLVMPositionBuilderAtEnd(self.builder, eblock);
-            if !self.gen_block(fstmt) { LLVMBuildBr(self.builder, mblock); }
+            let mut else_term = true;
+            self.gen_block(fstmt);
+            if LLVMGetBasicBlockTerminator(eblock).is_null() {
+                LLVMBuildBr(self.builder, mblock);
+                else_term = false;
+            }
+            // if !self.gen_block(fstmt) { LLVMBuildBr(self.builder, mblock); }
 
-            LLVMMoveBasicBlockAfter(mblock, LLVMGetInsertBlock(self.builder));
-            LLVMPositionBuilderAtEnd(self.builder, mblock);
+            // TODO: fix empty merge block
+            if then_term && else_term {
+                LLVMDeleteBasicBlock(mblock);
+            } else {
+                LLVMMoveBasicBlockAfter(mblock, LLVMGetInsertBlock(self.builder));
+                LLVMPositionBuilderAtEnd(self.builder, mblock);
+            }
         }
     }
 

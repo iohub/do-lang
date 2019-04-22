@@ -26,7 +26,7 @@ fn fact(n: int) -> int {
 }
 
 
-fn main() {
+fn main() -> int {
     let a = 1001 + 92;
     let b: int;
     a = foo1(a, 100) + 123 + foo1(a, 12);
@@ -34,4 +34,5 @@ fn main() {
     while a > b + 100 {
         b = a + foo1(a, b);
     }
+    return 0;
 }
