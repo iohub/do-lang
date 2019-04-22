@@ -1,0 +1,19 @@
+
+
+fn add(n: int) -> int {
+    if n == 1 { return 1; }
+    else { return 2 + n; }
+}
+
+
+fn main() -> int {
+    let a = 2;
+    while a < 100 {
+        a = a + add(a);
+        let b = a;
+        while b < 1000 {
+            b = b + 1;
+        }
+    }
+    return 0;
+}

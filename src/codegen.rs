@@ -37,6 +37,8 @@ pub enum ValueKind {
     Const,
 }
 
+// type arithmetic_prototype = unsafe extern "C" fn(LLVMBuilderRef, LLVMValueRef, LLVMValueRef, *const i8) -> LLVMValueRef;
+
 macro_rules! c_str {
     ($s:expr) => {
         concat!($s, "\0").as_ptr() as *const i8
@@ -241,6 +243,7 @@ impl LLVMGenerator {
         match op {
             Operator::EQ => LLVMIntEQ,
             Operator::GT => LLVMIntSGT,
+            Operator::LT => LLVMIntSLT,
             _ => unreachable!(),
         }
     }
@@ -249,6 +252,7 @@ impl LLVMGenerator {
         match op {
             Operator::EQ => LLVMRealOEQ,
             Operator::GT => LLVMRealOGT,
+            Operator::LT => LLVMRealOLT,
             _ => unreachable!(),
         }
     }

@@ -8,6 +8,7 @@ mod codegen;
 extern crate lalrpop_util;
 lalrpop_mod!(pub grammar);
 
+// #[macro_use] extern crate lazy_static;
 
 extern crate clap;
 use clap::{Arg, App};

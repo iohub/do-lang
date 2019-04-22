@@ -8,7 +8,7 @@ pub struct Module {
     pub body: StmtBlock,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, Hash, PartialEq)]
 pub enum AstType {
     Int,
     Float,
