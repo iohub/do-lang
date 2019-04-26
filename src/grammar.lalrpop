@@ -5,7 +5,12 @@ use crate::ast::*;
 grammar;
 
 pub Module: Vec<AstNode> = {
-    <v: Statement*> => v
+    <v: GStatement*> => v
+}
+
+pub GStatement: AstNode = {
+    <sd: StructDecl> => sd,
+    <Statement> => <>,
 }
 
 pub Statement: AstNode = {
@@ -161,6 +166,31 @@ FnDecl: AstNode = {
         AstNode::FnDecl(Box::new(AstNode::Ident(name, AstType::Int)), args, block)
     }
 }
+
+StructDecl: AstNode = {
+    <s:@L> <p: "pub"?> "struct" <ident: Ident> <field: StructField> <e:@L> => {
+        AstNode::StructDecl(Box::new(ident), field)
+    }
+}
+
+StructField: Vec<AstNode> = {
+    "{" <v:(<FieldDecl> ",")*> <e:FieldDecl?> "}" => match e {
+        None => v,
+        Some(e) => {
+            let mut v = v;
+            v.push(e);
+            v
+        }
+    }
+}
+
+FieldDecl: AstNode = {
+    <p: "pub"?> <n: RawIdent> ":" <t: RawIdent> => {
+        let typ = typeof_ident(&t);
+        AstNode::Ident(n, typ)
+    }
+}
+
 
 RawIdent: String = {
     <v:r"[A-Za-z_][A-Za-z_0-9]*"> => v.to_string()

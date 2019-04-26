@@ -13,12 +13,14 @@ use std::collections::HashMap;
 
 
 type SymbolTable = HashMap<String, IRValue>;
+type TypeTable = HashMap<String, LLVMTypeRef>;
 
 pub struct LLVMGenerator {
     pub ctx: LLVMContextRef,
     pub module: LLVMModuleRef,
     pub builder: LLVMBuilderRef,
 
+    pub structs: TypeTable,
     pub functions: SymbolTable,
     pub loops: Vec<(LLVMBasicBlockRef, LLVMBasicBlockRef)>,
     pub global: SymbolTable,
@@ -80,6 +82,8 @@ impl LLVMGenerator {
             ctx: _ctx,
             module: LLVMModuleCreateWithName(b"__module\0".as_ptr() as *const _),
             builder: LLVMCreateBuilderInContext(_ctx),
+
+            structs: HashMap::new(),
             functions: HashMap::new(),
             global: HashMap::new(),
             locals: Vec::new(),
@@ -91,6 +95,7 @@ impl LLVMGenerator {
         for item in module {
             match item {
                 AstNode::FnDecl(_, _, _) => self.gen_fndecl(item.clone()),
+                AstNode::StructDecl(_, _,) => self.gen_struct(item.clone()),
                 // AstNode::VarDecl(_, _, _) => self.gen_vardecl(&item, true),
                 _ => (),
             }
@@ -147,6 +152,20 @@ impl LLVMGenerator {
         }
     }
 
+    unsafe fn gen_struct(&mut self, n: AstNode) {
+        if let AstNode::StructDecl(ident, block) = n {
+            let cname = CString::new(ident_name(&ident)).unwrap();
+            let mut member: Vec<LLVMTypeRef> = block.into_iter().map(|e| self.typeof_llvm(ident_type(&e))).collect();
+            let sty = LLVMStructCreateNamed(self.ctx, cname.as_ptr());
+            LLVMStructSetBody(sty, member.as_mut_ptr(), member.len() as u32, 0);
+            LLVMPointerType(sty, 0);
+            self.push_struct(ident_name(&ident), sty);
+
+            return ;
+        }
+        unreachable!("[gen_struct]: {:?}", n);
+    }
+
     unsafe fn alloc_param(&mut self, func: LLVMValueRef, p: &Vec<AstNode>) {
         for (idx, var) in p.iter().enumerate() {
             let cname = CString::new(ident_name(&var)).unwrap();
@@ -165,6 +184,10 @@ impl LLVMGenerator {
 
     fn push_global_var(&mut self, var: String, val: IRValue) {
         self.global.insert(var, val);
+    }
+
+    fn push_struct(&mut self, var: String, val: LLVMTypeRef) {
+        self.structs.insert(var, val);
     }
 
     unsafe fn gen_vardecl(&mut self, var: &AstNode, global: bool) {
@@ -435,6 +458,9 @@ impl LLVMGenerator {
             AstType::Float => LLVMFloatTypeInContext(self.ctx),
             // TODO: AstType::Str => LLVMConstStringInContext(self.ctx),
             AstType::Bool => LLVMInt1TypeInContext(self.ctx),
+            AstType::Ext(name) => {
+                *self.structs.get(&name).unwrap()
+            },
             _ => LLVMInt8TypeInContext(self.ctx),
         }
     }

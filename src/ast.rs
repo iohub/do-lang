@@ -32,6 +32,8 @@ pub enum AstNode {
     FnDecl(Box<AstNode>, Param, StmtBlock),
     // Fn: Identifer, param: Vec<Identifer>
     FnCall(Box<AstNode>, Param),
+    // Struct: Identifer, Vec<member>
+    StructDecl(Box<AstNode>, StmtBlock),
     BinaryOp(Box<AstNode>, Operator, Box<AstNode>, AstType),
     UnaryOp(Operator, Box<AstNode>),
     VarDecl(Box<AstNode>, Box<AstNode>, AstType),

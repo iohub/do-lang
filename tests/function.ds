@@ -1,4 +1,9 @@
 
+pub struct Dingli {
+    age: int,
+    calssID: int,
+}
+
 fn foo1(a: int, b: int) -> int {
     let c = a + 1001;
     let d: int;
@@ -25,6 +30,10 @@ fn fact(n: int) -> int {
     else { return fact(n - 1) * n; }
 }
 
+pub struct StrOk {
+    age: int,
+    calssID: int,
+}
 
 fn main() -> int {
     let a = 1001 + 92;
