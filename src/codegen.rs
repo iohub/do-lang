@@ -53,6 +53,12 @@ macro_rules! ir_ref {
     };
 }
 
+unsafe fn print_cstring(cstr: *mut i8) {
+    let ir_cstring = CString::from_raw(cstr);
+    let _ir = ir_cstring.to_str().unwrap();
+    println!("{}", _ir);
+}
+
 macro_rules! ir_const {
     ($s:expr) => {
         IRValue::new_const($s)
@@ -78,9 +84,10 @@ impl IRValue {
 impl LLVMGenerator {
     pub unsafe fn new() -> Self {
         let _ctx = LLVMContextCreate();
+        let _mod = LLVMModuleCreateWithNameInContext(b"__module\0".as_ptr() as *const _, _ctx);
         LLVMGenerator {
             ctx: _ctx,
-            module: LLVMModuleCreateWithName(b"__module\0".as_ptr() as *const _),
+            module: _mod,
             builder: LLVMCreateBuilderInContext(_ctx),
 
             structs: HashMap::new(),
@@ -100,9 +107,9 @@ impl LLVMGenerator {
                 _ => (),
             }
         }
-        // let ir = LLVMPrintModuleToString(self.module);
-        // let ir_cstring = CString::from_raw(ir);
-        // let ir = ir_cstring.to_str().unwrap();
+        let ir = LLVMPrintModuleToString(self.module);
+        LLVMDisposeMessage(ir);
+        // print_cstring(ir);
 
         let out_file = CString::new(format!("{}.ll", name)).unwrap();
         LLVMPrintModuleToFile(self.module, out_file.as_ptr(), ptr::null_mut());
@@ -153,12 +160,20 @@ impl LLVMGenerator {
     }
 
     unsafe fn gen_struct(&mut self, n: AstNode) {
+        println!("{:?}", n);
         if let AstNode::StructDecl(ident, block) = n {
             let cname = CString::new(ident_name(&ident)).unwrap();
             let mut member: Vec<LLVMTypeRef> = block.into_iter().map(|e| self.typeof_llvm(ident_type(&e))).collect();
             let sty = LLVMStructCreateNamed(self.ctx, cname.as_ptr());
             LLVMStructSetBody(sty, member.as_mut_ptr(), member.len() as u32, 0);
-            LLVMPointerType(sty, 0);
+
+            let sir = LLVMPrintTypeToString(sty);
+            print_cstring(sir);
+
+            // let sty = LLVMStructTypeInContext(self.ctx, member.as_mut_ptr(), member.len() as u32, 0);
+            // LLVMPointerType(sty, 0);
+            let fptr = LLVMGetTypeByName(self.module, cname.as_ptr());
+            println!("cname:{:?} member: {:?} sty {:?} p:{:?}", cname, member, sty, fptr);
             self.push_struct(ident_name(&ident), sty);
 
             return ;
@@ -364,6 +379,7 @@ impl LLVMGenerator {
                 AstNode::Assignment(_, _) => self.gen_assign(stmt),
                 AstNode::ReturnStmt(_, _) => { self.gen_return(stmt); ret = true; }
                 AstNode::WhileStmt(_, _) => self.gen_while(stmt),
+                // AstNode::StructDecl(_, _,) => self.gen_struct(stmt),
                 _ => (),
             }
         }
