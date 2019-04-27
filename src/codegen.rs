@@ -53,10 +53,9 @@ macro_rules! ir_ref {
     };
 }
 
-unsafe fn print_cstring(cstr: *mut i8) {
-    let ir_cstring = CString::from_raw(cstr);
-    let _ir = ir_cstring.to_str().unwrap();
-    println!("{}", _ir);
+unsafe fn convert_cstring(cstr: *mut i8) -> String {
+    let _str = CString::from_raw(cstr);
+    _str.into_string().unwrap()
 }
 
 macro_rules! ir_const {
@@ -107,12 +106,20 @@ impl LLVMGenerator {
                 _ => (),
             }
         }
-        let ir = LLVMPrintModuleToString(self.module);
-        LLVMDisposeMessage(ir);
-        // print_cstring(ir);
 
-        let out_file = CString::new(format!("{}.ll", name)).unwrap();
-        LLVMPrintModuleToFile(self.module, out_file.as_ptr(), ptr::null_mut());
+        let mut module_ir = convert_cstring(LLVMPrintModuleToString(self.module));
+
+        for (_, ty_ref) in &self.structs {
+            let sty = convert_cstring(LLVMPrintTypeToString(*ty_ref));
+            module_ir.push_str(&format!("{}\n", sty));
+            // LLVMDisposeMessage(sty);
+        }
+
+        println!("{}", module_ir);
+
+        std::fs::write(format!("{}.ll", name), module_ir).expect(&format!("[err] write {}", name));
+        // let out_file = CString::new(format!("{}.ll", name)).unwrap();
+        // LLVMPrintModuleToFile(self.module, out_file.as_ptr(), ptr::null_mut());
         LLVMDisposeBuilder(self.builder);
         LLVMDisposeModule(self.module);
         LLVMContextDispose(self.ctx);
@@ -160,20 +167,14 @@ impl LLVMGenerator {
     }
 
     unsafe fn gen_struct(&mut self, n: AstNode) {
-        println!("{:?}", n);
         if let AstNode::StructDecl(ident, block) = n {
             let cname = CString::new(ident_name(&ident)).unwrap();
             let mut member: Vec<LLVMTypeRef> = block.into_iter().map(|e| self.typeof_llvm(ident_type(&e))).collect();
             let sty = LLVMStructCreateNamed(self.ctx, cname.as_ptr());
             LLVMStructSetBody(sty, member.as_mut_ptr(), member.len() as u32, 0);
 
-            let sir = LLVMPrintTypeToString(sty);
-            print_cstring(sir);
-
-            // let sty = LLVMStructTypeInContext(self.ctx, member.as_mut_ptr(), member.len() as u32, 0);
-            // LLVMPointerType(sty, 0);
-            let fptr = LLVMGetTypeByName(self.module, cname.as_ptr());
-            println!("cname:{:?} member: {:?} sty {:?} p:{:?}", cname, member, sty, fptr);
+            // let fptr = LLVMGetTypeByName(self.module, cname.as_ptr());
+            // println!("cname:{:?} member: {:?} sty {:?} p:{:?}", cname, member, sty, fptr);
             self.push_struct(ident_name(&ident), sty);
 
             return ;

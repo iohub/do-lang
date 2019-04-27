@@ -1,7 +1,7 @@
 	.section	__TEXT,__text,regular,pure_instructions
 	.macosx_version_min 10, 13
 	.section	__TEXT,__literal4,4byte_literals
-	.p2align	2
+	.p2align	2               ## -- Begin function foo1
 LCPI0_0:
 	.long	1063172178              ## float 0.870000004
 	.section	__TEXT,__text,regular,pure_instructions
@@ -9,26 +9,22 @@ LCPI0_0:
 	.p2align	4, 0x90
 _foo1:                                  ## @foo1
 	.cfi_startproc
-## BB#0:                                ## %entry
+## %bb.0:                               ## %entry
 	pushq	%rbp
-Ltmp0:
 	.cfi_def_cfa_offset 16
-Ltmp1:
 	.cfi_offset %rbp, -16
 	movq	%rsp, %rbp
-Ltmp2:
 	.cfi_def_cfa_register %rbp
 	subq	$48, %rsp
 	movq	%rdi, -16(%rbp)
 	movq	%rsi, -32(%rbp)
-	movl	$1001, %eax             ## imm = 0x3E9
-	addq	-16(%rbp), %rax
-	movq	%rax, -8(%rbp)
+	addq	$1001, %rdi             ## imm = 0x3E9
+	movq	%rdi, -8(%rbp)
 	movl	$1123477881, -36(%rbp)  ## imm = 0x42F6E979
 	xorl	%eax, %eax
 	testb	%al, %al
 	jne	LBB0_2
-## BB#1:                                ## %"if:then"
+## %bb.1:                               ## %"if:then"
 	movq	%rsp, %rax
 	leaq	-16(%rax), %rsp
 	movl	$1123449569, -16(%rax)  ## imm = 0x42F67AE1
@@ -43,7 +39,7 @@ Ltmp2:
 LBB0_2:                                 ## %"if:merge"
 	cmpq	$101, -8(%rbp)
 	jl	LBB0_4
-## BB#3:                                ## %"if:then1"
+## %bb.3:                               ## %"if:then1"
 	movq	%rsp, %rax
 	leaq	-16(%rax), %rsp
 	movq	$1002, -16(%rax)        ## imm = 0x3EA
@@ -56,30 +52,29 @@ LBB0_4:                                 ## %"if:merge3"
 	popq	%rbp
 	retq
 	.cfi_endproc
-
-	.globl	_foo2
+                                        ## -- End function
+	.globl	_foo2                   ## -- Begin function foo2
 	.p2align	4, 0x90
 _foo2:                                  ## @foo2
 	.cfi_startproc
-## BB#0:                                ## %entry
+## %bb.0:                               ## %entry
 	movq	%rdi, -8(%rsp)
 	cmpq	$100, %rdi
 	sete	%al
 	retq
 	.cfi_endproc
-
-	.globl	_fact
+                                        ## -- End function
+	.globl	_fact                   ## -- Begin function fact
 	.p2align	4, 0x90
 _fact:                                  ## @fact
 	.cfi_startproc
-## BB#0:                                ## %entry
+## %bb.0:                               ## %entry
 	pushq	%rax
-Ltmp3:
 	.cfi_def_cfa_offset 16
 	movq	%rdi, (%rsp)
 	cmpq	$1, %rdi
 	jne	LBB2_2
-## BB#1:                                ## %"if:then"
+## %bb.1:                               ## %"if:then"
 	movl	$1, %eax
 	popq	%rcx
 	retq
@@ -91,19 +86,16 @@ LBB2_2:                                 ## %"if:else"
 	popq	%rcx
 	retq
 	.cfi_endproc
-
-	.globl	_main
+                                        ## -- End function
+	.globl	_main                   ## -- Begin function main
 	.p2align	4, 0x90
 _main:                                  ## @main
 	.cfi_startproc
-## BB#0:                                ## %entry
+## %bb.0:                               ## %entry
 	pushq	%rbx
-Ltmp4:
 	.cfi_def_cfa_offset 16
 	subq	$16, %rsp
-Ltmp5:
 	.cfi_def_cfa_offset 32
-Ltmp6:
 	.cfi_offset %rbx, -16
 	movq	$1093, (%rsp)           ## imm = 0x445
 	movl	$1093, %edi             ## imm = 0x445
@@ -133,12 +125,12 @@ LBB3_1:                                 ## %"while:cond"
 	addq	$100, %rax
 	cmpq	%rax, (%rsp)
 	jg	LBB3_2
-## BB#3:                                ## %"while:merge"
+## %bb.3:                               ## %"while:merge"
 	xorl	%eax, %eax
 	addq	$16, %rsp
 	popq	%rbx
 	retq
 	.cfi_endproc
-
+                                        ## -- End function
 
 .subsections_via_symbols

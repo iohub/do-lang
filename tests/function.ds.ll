@@ -128,3 +128,5 @@ entry:
 "while:merge":                                    ; preds = %"while:cond"
   ret i64 0
 }
+%StrOk = type { i64, i64 }
+%Dingli = type { i64, i64 }
